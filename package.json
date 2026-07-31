@@ -1,6 +1,6 @@
 {
   "name": "obsidian-anki-cloze-sync",
-  "version": "1.4.0",
+  "version": "1.0.0",
   "description": "Sync Obsidian cloze, Q/A, code practice, and image occlusion flashcards to Anki through AnkiConnect.",
   "main": "main.js",
   "type": "module",

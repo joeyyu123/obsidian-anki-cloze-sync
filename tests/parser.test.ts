@@ -16,6 +16,7 @@ import {
   contentHashTag,
   createContentHash,
   findStaleNoteIds,
+  mergeNoteIdsBySyncId,
   noteBelongsToFile,
   obsoleteLegacyFileTags
 } from "../src/sync-utils";
@@ -257,6 +258,29 @@ test("adds a file id when an older synced card was removed", () => {
 
 test("finds notes removed from the current Markdown file", () => {
   assert.deepEqual(findStaleNoteIds([10, 20, 20, 30], [10, 30]), [20]);
+});
+
+test("recovers a card match from owned note tags when the direct Anki query misses it", () => {
+  const result = mergeNoteIdsBySyncId(
+    ["card-123", "card-456"],
+    new Map([
+      ["card-123", []],
+      ["card-456", [20]]
+    ]),
+    [
+      {
+        noteId: 10,
+        tags: ["obsidian_file_note", "obsidian_sync_id_card-123"]
+      },
+      {
+        noteId: 20,
+        tags: ["obsidian_file_note", "obsidian_sync_id_card-456"]
+      }
+    ]
+  );
+
+  assert.deepEqual(result.get("card-123"), [10]);
+  assert.deepEqual(result.get("card-456"), [20]);
 });
 
 test("regenerates file and card ids without changing card content", () => {

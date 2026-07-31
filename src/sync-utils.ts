@@ -17,6 +17,32 @@ export interface TaggedNote {
   tags: string[];
 }
 
+export function mergeNoteIdsBySyncId(
+  syncIds: Iterable<string>,
+  queriedNoteIds: ReadonlyMap<string, readonly number[]>,
+  ownedNotes: Iterable<TaggedNote>
+): Map<string, number[]> {
+  const desiredIds = new Set(syncIds);
+  const result = new Map<string, number[]>();
+
+  for (const syncId of desiredIds) {
+    result.set(syncId, [...new Set(queriedNoteIds.get(syncId) ?? [])]);
+  }
+
+  for (const note of ownedNotes) {
+    for (const tag of note.tags) {
+      if (!tag.startsWith(SYNC_ID_TAG_PREFIX)) continue;
+      const syncId = tag.slice(SYNC_ID_TAG_PREFIX.length);
+      if (!desiredIds.has(syncId)) continue;
+      const noteIds = result.get(syncId) ?? [];
+      if (!noteIds.includes(note.noteId)) noteIds.push(note.noteId);
+      result.set(syncId, noteIds);
+    }
+  }
+
+  return result;
+}
+
 export function noteBelongsToFile(
   note: TaggedNote,
   fileSyncId: string | null,

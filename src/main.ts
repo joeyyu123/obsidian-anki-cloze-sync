@@ -32,6 +32,7 @@ import {
   contentHashTag,
   createContentHash,
   findStaleNoteIds,
+  mergeNoteIdsBySyncId,
   noteBelongsToFile,
   obsoleteLegacyFileTags
 } from "./sync-utils";
@@ -282,7 +283,23 @@ export default class AnkiFlashcardSyncPlugin extends Plugin {
     const initial = await this.app.vault.read(file);
     if (this.addSyncIdsToCurrentSource(initial) === initial) return initial;
 
-    return this.app.vault.process(file, (current) => this.addSyncIdsToCurrentSource(current));
+    const vault = this.app.vault as typeof this.app.vault & {
+      process?: (target: TFile, update: (data: string) => string) => Promise<string>;
+    };
+    if (typeof vault.process === "function") {
+      return vault.process(file, (current) => this.addSyncIdsToCurrentSource(current));
+    }
+
+    const current = await this.app.vault.read(file);
+    const updated = this.addSyncIdsToCurrentSource(current);
+    if (updated === current) return current;
+    const latest = await this.app.vault.read(file);
+    if (latest !== current) {
+      this.pendingSyncFiles.add(file);
+      throw new Error("筆記在加入同步 ID 前又有變更；已取消本次寫入並安排重新同步。");
+    }
+    await this.app.vault.modify(file, updated);
+    return updated;
   }
 
   private async refreshIdIndexForFile(file: TFile): Promise<void> {
@@ -362,12 +379,15 @@ export default class AnkiFlashcardSyncPlugin extends Plugin {
     const client = new AnkiConnectClient(this.settings.ankiConnectUrl);
     const fileSyncId = collectMarkdownSyncIds(source).fileId;
     const legacyFileTag = this.buildLegacyFileTag(file);
+    const registeredNoteIds = new Set(
+      fileSyncId ? this.syncRegistry[fileSyncId]?.noteIds ?? [] : []
+    );
     const [fileNoteIds, legacyNoteIds] = await Promise.all([
       fileSyncId ? client.findByFileId(fileSyncId) : Promise.resolve([]),
       client.findByLegacyFileTag(legacyFileTag)
     ]);
     const ownershipCandidates = await client.notesInfo(
-      [...new Set([...fileNoteIds, ...legacyNoteIds])]
+      [...new Set([...fileNoteIds, ...legacyNoteIds, ...registeredNoteIds])]
     );
     const safeFileNoteIds = ownershipCandidates
       .filter(
@@ -385,9 +405,6 @@ export default class AnkiFlashcardSyncPlugin extends Plugin {
     }
     const legacyInfos = ownershipCandidates.filter((info) => legacyNoteIds.includes(info.noteId));
     const activeSyncIds = new Set(cards.flatMap((card) => card.id ? [card.id] : []));
-    const registeredNoteIds = new Set(
-      fileSyncId ? this.syncRegistry[fileSyncId]?.noteIds ?? [] : []
-    );
     const safeLegacyNoteIds = legacyInfos
       .filter((info) =>
         canSafelyAttributeLegacyNote(
@@ -399,14 +416,36 @@ export default class AnkiFlashcardSyncPlugin extends Plugin {
         )
       )
       .map((info) => info.noteId);
-    const knownNoteIds = new Set([...safeFileNoteIds, ...safeLegacyNoteIds]);
+    const safeRegisteredNoteIds = ownershipCandidates
+      .filter(
+        (info) =>
+          registeredNoteIds.has(info.noteId) &&
+          noteBelongsToFile(info, fileSyncId, legacyFileTag)
+      )
+      .map((info) => info.noteId);
+    const knownNoteIds = new Set([
+      ...safeFileNoteIds,
+      ...safeLegacyNoteIds,
+      ...safeRegisteredNoteIds
+    ]);
     const activeNoteIds = new Set<number>();
-    const noteIdsBySyncId = await client.findBySyncIds(
-      cards.flatMap((card) => card.id ? [card.id] : [])
+    const cardSyncIds = cards.flatMap((card) => card.id ? [card.id] : []);
+    const queriedNoteIdsBySyncId = await client.findBySyncIds(cardSyncIds);
+    const noteIdsBySyncId = mergeNoteIdsBySyncId(
+      cardSyncIds,
+      queriedNoteIdsBySyncId,
+      ownershipCandidates.filter((info) => knownNoteIds.has(info.noteId))
     );
     const allCardNoteIds = [...new Set([...noteIdsBySyncId.values()].flat())];
     const noteInfoById = new Map(
-      (await client.notesInfo(allCardNoteIds)).map((info) => [info.noteId, info])
+      [
+        ...ownershipCandidates,
+        ...(await client.notesInfo(
+          allCardNoteIds.filter(
+            (noteId) => !ownershipCandidates.some((info) => info.noteId === noteId)
+          )
+        ))
+      ].map((info) => [info.noteId, info])
     );
 
     for (const card of cards) {
@@ -524,12 +563,14 @@ export default class AnkiFlashcardSyncPlugin extends Plugin {
 
       const client = new AnkiConnectClient(this.settings.ankiConnectUrl);
       const legacyFileTag = this.buildLegacyFileTag(file);
+      const previousEntry = fileSyncId ? this.syncRegistry[fileSyncId] : undefined;
+      const registeredNoteIds = new Set(previousEntry?.noteIds ?? []);
       const [fileNoteIds, legacyNoteIds] = await Promise.all([
         fileSyncId ? client.findByFileId(fileSyncId) : Promise.resolve([]),
         client.findByLegacyFileTag(legacyFileTag)
       ]);
       const ownershipCandidates = await client.notesInfo(
-        [...new Set([...fileNoteIds, ...legacyNoteIds])]
+        [...new Set([...fileNoteIds, ...legacyNoteIds, ...registeredNoteIds])]
       );
       const safeFileNoteIds = ownershipCandidates
         .filter(
@@ -542,9 +583,7 @@ export default class AnkiFlashcardSyncPlugin extends Plugin {
         throw new Error("部分 Anki notes 帶有多個或不相符的來源檔案 ID；已停止同步以避免跨筆記修改。");
       }
       const legacyInfos = ownershipCandidates.filter((info) => legacyNoteIds.includes(info.noteId));
-      const previousEntry = fileSyncId ? this.syncRegistry[fileSyncId] : undefined;
       const activeSyncIds = new Set(cards.flatMap((card) => card.id ? [card.id] : []));
-      const registeredNoteIds = new Set(previousEntry?.noteIds ?? []);
       const safeLegacyNoteIds = legacyInfos
         .filter((info) =>
           canSafelyAttributeLegacyNote(
@@ -556,17 +595,39 @@ export default class AnkiFlashcardSyncPlugin extends Plugin {
           )
         )
         .map((info) => info.noteId);
-      const knownFileNoteIds = new Set([...safeFileNoteIds, ...safeLegacyNoteIds]);
+      const safeRegisteredNoteIds = ownershipCandidates
+        .filter(
+          (info) =>
+            registeredNoteIds.has(info.noteId) &&
+            noteBelongsToFile(info, fileSyncId, legacyFileTag)
+        )
+        .map((info) => info.noteId);
+      const knownFileNoteIds = new Set([
+        ...safeFileNoteIds,
+        ...safeLegacyNoteIds,
+        ...safeRegisteredNoteIds
+      ]);
       const activeNoteIds = new Set<number>();
       const obsoleteManagedTags = (previousEntry?.managedTags ?? []).filter(
         (tag) => !config.tags.includes(tag)
       );
-      const noteIdsBySyncId = await client.findBySyncIds(
-        cards.flatMap((card) => card.id ? [card.id] : [])
+      const cardSyncIds = cards.flatMap((card) => card.id ? [card.id] : []);
+      const queriedNoteIdsBySyncId = await client.findBySyncIds(cardSyncIds);
+      const noteIdsBySyncId = mergeNoteIdsBySyncId(
+        cardSyncIds,
+        queriedNoteIdsBySyncId,
+        ownershipCandidates.filter((info) => knownFileNoteIds.has(info.noteId))
       );
       const allCardNoteIds = [...new Set([...noteIdsBySyncId.values()].flat())];
       const noteInfoById = new Map(
-        (await client.notesInfo(allCardNoteIds)).map((info) => [info.noteId, info])
+        [
+          ...ownershipCandidates,
+          ...(await client.notesInfo(
+            allCardNoteIds.filter(
+              (noteId) => !ownershipCandidates.some((info) => info.noteId === noteId)
+            )
+          ))
+        ].map((info) => [info.noteId, info])
       );
       for (const card of cards) {
         if (!card.id) continue;
@@ -1042,16 +1103,13 @@ export default class AnkiFlashcardSyncPlugin extends Plugin {
       "重新產生"
     );
     if (!confirmed) return;
-    let replaced = 0;
-    const updated = await this.app.vault.process(file, (source) => {
-      const regenerated = regenerateSyncIds(source, () => crypto.randomUUID());
-      const withFileId = ensureFileSyncId(regenerated.markdown, () => crypto.randomUUID());
-      const withCardIds = addMissingSyncIds(withFileId.markdown, () => crypto.randomUUID());
-      replaced = regenerated.replaced + withCardIds.added + (withFileId.added ? 1 : 0);
-      return withCardIds.markdown;
-    });
-    this.idsByPath.set(file.path, collectMarkdownSyncIds(updated));
-    new Notice(`已重新產生 ${replaced} 個同步 ID。`);
+    const source = await this.app.vault.read(file);
+    const regenerated = regenerateSyncIds(source, () => crypto.randomUUID());
+    const withFileId = ensureFileSyncId(regenerated.markdown, () => crypto.randomUUID());
+    const withCardIds = addMissingSyncIds(withFileId.markdown, () => crypto.randomUUID());
+    await this.app.vault.modify(file, withCardIds.markdown);
+    this.idsByPath.set(file.path, collectMarkdownSyncIds(withCardIds.markdown));
+    new Notice(`已重新產生 ${regenerated.replaced + withCardIds.added + (withFileId.added ? 1 : 0)} 個同步 ID。`);
   }
 
   private async handleDeletedFile(path: string): Promise<void> {

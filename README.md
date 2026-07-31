@@ -240,9 +240,13 @@ A: 心臟構造重點
 ## 安裝與使用
 
 1. 在 Anki 安裝 AnkiConnect（AnkiWeb add-on code：`2055492159`），並保持 Anki 開啟。
-2. 從 GitHub Releases 下載 `main.js`、`manifest.json` 與 `styles.css`，放入 Vault 的 `.obsidian/plugins/anki-cloze-sync/`。正式收錄後也可直接從 Obsidian 的「設定 → 第三方外掛」安裝。
+2. 正式收錄後，從 Obsidian 的「設定 → 第三方外掛 → 瀏覽」搜尋 **Anki Flashcard Sync** 並安裝。
 3. 在 Obsidian 的「設定 → 第三方外掛」啟用 **Anki Flashcard Sync**。
 4. 建立填空、問答或影像遮擋卡後，從命令面板執行「同步目前筆記到 Anki」，或使用左側功能區的按鈕同步整個 Vault。
+
+若要在正式收錄前手動安裝，請從 GitHub Releases 下載 `main.js`、`manifest.json`
+與 `styles.css`，放入 Vault 的 `.obsidian/plugins/anki-cloze-sync/` 後重新載入
+Obsidian。
 
 預設會建立：
 
