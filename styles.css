@@ -1,0 +1,501 @@
+.anki-cloze-sync-settings input[type="text"] {
+  min-width: 20rem;
+}
+
+.modal.anki-image-occlusion-modal {
+  width: min(96vw, 1040px);
+  max-width: 96vw;
+  max-height: min(94dvh, 920px);
+}
+
+.anki-image-occlusion-editor {
+  --io-accent: #0f8f81;
+  --io-accent-soft: color-mix(in srgb, var(--io-accent) 16%, transparent);
+  --io-warm: #dc7b32;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.anki-image-occlusion-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  min-width: 0;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.anki-image-occlusion-heading > div {
+  min-width: 0;
+}
+
+.anki-image-occlusion-heading h2 {
+  margin: 0.18rem 0 0;
+  font-family: var(--font-interface-theme), "Noto Serif TC", serif;
+  font-size: clamp(1.45rem, 3vw, 2.1rem);
+}
+
+.anki-image-occlusion-kicker,
+.anki-image-occlusion-filename,
+.anki-image-occlusion-data-strip {
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.anki-image-occlusion-filename {
+  max-width: 42%;
+  overflow: hidden;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 999px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.anki-image-occlusion-instruction {
+  max-width: 70ch;
+  margin: 0.85rem 0;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+.anki-image-occlusion-viewport {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  min-height: min(280px, 34dvh);
+  max-height: 58dvh;
+  box-sizing: border-box;
+  padding: 1rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+  place-items: center;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-l);
+  background:
+    linear-gradient(45deg, var(--background-modifier-border) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--background-modifier-border) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--background-modifier-border) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--background-modifier-border) 75%),
+    var(--background-secondary);
+  background-position: 0 0, 0 9px, 9px -9px, -9px 0;
+  background-size: 18px 18px;
+}
+
+.anki-image-occlusion-editor-stage {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: var(--radius-m);
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.24);
+  cursor: crosshair;
+  line-height: 0;
+  touch-action: none;
+  user-select: none;
+}
+
+.anki-image-occlusion-editor-stage img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.anki-image-occlusion-editor-mask {
+  position: absolute;
+  z-index: 2;
+  box-sizing: border-box;
+  display: none;
+  border: 2px solid color-mix(in srgb, var(--io-accent) 75%, black);
+  border-radius: 5px;
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0 7px, transparent 7px 14px),
+    color-mix(in srgb, var(--io-accent) 88%, transparent);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.7), 0 6px 18px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+}
+
+.anki-image-occlusion-editor-mask.is-visible { display: block; }
+.anki-image-occlusion-editor-mask.is-draft {
+  z-index: 4;
+  border-style: dashed;
+}
+
+.anki-image-occlusion-editor-mask.is-committed {
+  display: grid;
+  padding: 0;
+  place-items: center;
+  color: white;
+  font: 800 clamp(0.7rem, 2vw, 1rem)/1 var(--font-monospace);
+  cursor: grab;
+  pointer-events: auto;
+}
+
+.anki-image-occlusion-editor-mask.is-committed:hover {
+  filter: brightness(1.12);
+}
+
+.anki-image-occlusion-editor-mask.is-committed.is-active {
+  z-index: 5;
+  cursor: grabbing;
+  filter: brightness(1.18);
+}
+
+.anki-image-occlusion-editor-mask-number {
+  pointer-events: none;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+}
+
+.anki-image-occlusion-resize-handle {
+  position: absolute;
+  width: 0.72rem;
+  height: 0.72rem;
+  border: 2px solid var(--background-primary);
+  border-radius: 50%;
+  background: var(--io-warm);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.5);
+  touch-action: none;
+}
+
+.anki-image-occlusion-resize-handle.is-nw {
+  top: 0;
+  left: 0;
+  cursor: nwse-resize;
+  transform: translate(-50%, -50%);
+}
+
+.anki-image-occlusion-resize-handle.is-ne {
+  top: 0;
+  right: 0;
+  cursor: nesw-resize;
+  transform: translate(50%, -50%);
+}
+
+.anki-image-occlusion-resize-handle.is-sw {
+  bottom: 0;
+  left: 0;
+  cursor: nesw-resize;
+  transform: translate(-50%, 50%);
+}
+
+.anki-image-occlusion-resize-handle.is-se {
+  right: 0;
+  bottom: 0;
+  cursor: nwse-resize;
+  transform: translate(50%, 50%);
+}
+
+.anki-image-occlusion-data-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-width: 0;
+  margin-top: 0.55rem;
+  padding: 0.5rem 0.7rem;
+  border-left: 3px solid var(--io-warm);
+  background: var(--background-secondary);
+}
+
+.anki-image-occlusion-data-strip code {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--io-accent);
+  font-size: 0.72rem;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.anki-image-occlusion-mask-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 0.45rem;
+  max-height: 7.5rem;
+  margin: 0.55rem 0 0.25rem;
+  overflow: auto;
+}
+
+.anki-image-occlusion-mask-list > p {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+.anki-image-occlusion-mask-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-secondary);
+}
+
+.anki-image-occlusion-mask-item strong {
+  color: var(--io-warm);
+  font-family: var(--font-monospace);
+  font-size: 0.72rem;
+}
+
+.anki-image-occlusion-mask-item code {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.anki-image-occlusion-mask-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.anki-image-occlusion-mask-item button {
+  padding: 0.18rem 0.45rem;
+  border: 0;
+  color: var(--text-muted);
+  background: transparent;
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+}
+
+.anki-image-occlusion-mask-item button:hover { color: var(--text-error); }
+.anki-image-occlusion-mask-item button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.anki-image-occlusion-editor textarea {
+  width: min(32rem, 100%);
+  min-width: 0;
+  max-width: 100%;
+  min-height: 4.6rem;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.anki-image-occlusion-actions .setting-item-info { display: none; }
+.anki-image-occlusion-actions .setting-item-control {
+  width: 100%;
+  min-width: 0;
+  justify-content: flex-end;
+}
+
+.anki-sync-card-preview .image-occlusion-stage {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.anki-sync-card-preview .image-occlusion-stage img {
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: auto;
+}
+
+.anki-sync-card-preview .image-occlusion-mask {
+  position: absolute;
+  display: block;
+  border: 2px solid var(--interactive-accent);
+  border-radius: 4px;
+  background: var(--interactive-accent);
+  opacity: 0.92;
+}
+
+.anki-sync-card-preview .image-occlusion-mask--revealed {
+  border-color: var(--text-warning);
+  background: transparent;
+  opacity: 1;
+}
+
+@media (max-width: 620px) {
+  .modal.anki-image-occlusion-modal {
+    width: 96vw;
+    max-width: 96vw;
+    max-height: 96dvh;
+  }
+
+  .anki-image-occlusion-heading { align-items: flex-start; flex-direction: column; }
+  .anki-image-occlusion-filename { max-width: 100%; }
+  .anki-image-occlusion-instruction { margin: 0.65rem 0; }
+  .anki-image-occlusion-viewport {
+    min-height: min(220px, 32dvh);
+    max-height: 50dvh;
+    padding: 0.55rem;
+  }
+  .anki-image-occlusion-resize-handle {
+    width: 1rem;
+    height: 1rem;
+  }
+  .anki-image-occlusion-resize-handle::before {
+    position: absolute;
+    inset: -0.5rem;
+    content: "";
+  }
+  .anki-image-occlusion-data-strip {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .anki-image-occlusion-data-strip code { width: 100%; }
+  .anki-image-occlusion-mask-list {
+    grid-template-columns: minmax(0, 1fr);
+    max-height: 6.5rem;
+  }
+  .anki-image-occlusion-mask-item button {
+    min-width: 2rem;
+    min-height: 2rem;
+  }
+  .anki-image-occlusion-answer {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .anki-image-occlusion-answer .setting-item-info,
+  .anki-image-occlusion-answer .setting-item-control,
+  .anki-image-occlusion-answer textarea {
+    width: 100%;
+  }
+  .anki-image-occlusion-actions .setting-item-control {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+  .anki-image-occlusion-actions button {
+    width: 100%;
+    margin: 0;
+  }
+  .anki-image-occlusion-actions button:last-child { grid-column: 1 / -1; }
+}
+
+.is-mobile .modal.anki-image-occlusion-modal {
+  width: 100vw;
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  border-radius: 0;
+}
+
+.is-mobile .anki-image-occlusion-editor {
+  padding-right: max(var(--size-4-4, 1rem), env(safe-area-inset-right));
+  padding-bottom: max(var(--size-4-4, 1rem), env(safe-area-inset-bottom));
+  padding-left: max(var(--size-4-4, 1rem), env(safe-area-inset-left));
+}
+
+@media (max-height: 560px) and (orientation: landscape) {
+  .anki-image-occlusion-viewport {
+    min-height: 150px;
+    max-height: 62dvh;
+  }
+}
+
+.anki-sync-preview-path {
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
+  overflow-wrap: anywhere;
+}
+
+.anki-sync-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.anki-sync-preview-stat {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.8rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+  text-align: center;
+}
+
+.anki-sync-preview-stat strong {
+  font-size: 1.5rem;
+}
+
+.anki-sync-preview-stat span {
+  color: var(--text-muted);
+}
+
+.anki-sync-diagnostics {
+  padding-inline-start: 1.4rem;
+}
+
+.anki-sync-diagnostic-error {
+  color: var(--text-error);
+}
+
+.anki-sync-diagnostic-warning {
+  color: var(--text-warning);
+}
+
+.anki-sync-card-preview {
+  margin: 0.6rem 0;
+  padding: 0.7rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+}
+
+.anki-sync-card-preview summary {
+  cursor: pointer;
+  font-weight: var(--font-semibold);
+}
+
+.anki-sync-card-preview-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 0.8rem;
+}
+
+.anki-sync-card-preview-content {
+  max-height: 18rem;
+  margin-top: 0.4rem;
+  padding: 0.75rem;
+  overflow: auto;
+  border-radius: var(--radius-s);
+  background: var(--background-secondary);
+}
+
+.anki-sync-card-preview-content > :first-child {
+  margin-top: 0;
+}
+
+.anki-sync-card-preview-content > :last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 520px) {
+  .anki-sync-preview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .anki-sync-card-preview-columns {
+    grid-template-columns: 1fr;
+  }
+}
