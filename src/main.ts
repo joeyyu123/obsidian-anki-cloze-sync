@@ -3,7 +3,8 @@ import {
   MarkdownRenderer,
   Notice,
   Plugin,
-  TFile
+  TFile,
+  sanitizeHTMLToDom
 } from "obsidian";
 import { AnkiConnectClient, type AnkiNoteInfo } from "./anki-connect";
 import {
@@ -227,9 +228,6 @@ export default class AnkiFlashcardSyncPlugin extends Plugin {
     const raw = (await this.loadData()) as Partial<StoredPluginData> & Partial<AnkiSyncSettings> | null;
     const storedSettings = raw?.settings ?? raw ?? {};
     this.settings = Object.assign({}, DEFAULT_SETTINGS, storedSettings);
-    if (!("removedCardAction" in storedSettings)) {
-      this.settings.removedCardAction = storedSettings.deleteRemovedCards === false ? "keep" : "suspend";
-    }
     this.syncRegistry = raw?.syncRegistry ?? {};
   }
 
@@ -283,23 +281,7 @@ export default class AnkiFlashcardSyncPlugin extends Plugin {
     const initial = await this.app.vault.read(file);
     if (this.addSyncIdsToCurrentSource(initial) === initial) return initial;
 
-    const vault = this.app.vault as typeof this.app.vault & {
-      process?: (target: TFile, update: (data: string) => string) => Promise<string>;
-    };
-    if (typeof vault.process === "function") {
-      return vault.process(file, (current) => this.addSyncIdsToCurrentSource(current));
-    }
-
-    const current = await this.app.vault.read(file);
-    const updated = this.addSyncIdsToCurrentSource(current);
-    if (updated === current) return current;
-    const latest = await this.app.vault.read(file);
-    if (latest !== current) {
-      this.pendingSyncFiles.add(file);
-      throw new Error("筆記在加入同步 ID 前又有變更；已取消本次寫入並安排重新同步。");
-    }
-    await this.app.vault.modify(file, updated);
-    return updated;
+    return this.app.vault.process(file, (current) => this.addSyncIdsToCurrentSource(current));
   }
 
   private async refreshIdIndexForFile(file: TFile): Promise<void> {
@@ -488,7 +470,8 @@ export default class AnkiFlashcardSyncPlugin extends Plugin {
         continue;
       }
       const noteInfo = this.choosePrimaryNoteInfo(ownedInfos, modelName);
-      const primaryId = noteInfo?.noteId ?? (noteIds[0] as number);
+      const primaryId = noteInfo?.noteId ?? noteIds[0];
+      if (primaryId === undefined) continue;
       activeNoteIds.add(primaryId);
       const desiredTags = this.buildTags(file, card.id, fileSyncId, config.tags, hashTag);
       if (
@@ -705,7 +688,10 @@ export default class AnkiFlashcardSyncPlugin extends Plugin {
         }
         const ownedNoteIds = ownedInfos.map((info) => info.noteId);
         const noteInfo = this.choosePrimaryNoteInfo(ownedInfos, modelName);
-        const primaryNoteId = noteInfo?.noteId ?? (ownedNoteIds[0] ?? noteIds[0] as number);
+        const primaryNoteId = noteInfo?.noteId ?? ownedNoteIds[0] ?? noteIds[0];
+        if (primaryNoteId === undefined) {
+          throw new Error(`無法取得卡片 ID ${card.id} 的 Anki note。`);
+        }
         if (noteInfo && noteInfo.modelName !== modelName) {
           const replacementId = await client.addNote({
             deckName: config.deckName,
@@ -878,8 +864,8 @@ export default class AnkiFlashcardSyncPlugin extends Plugin {
       this.renderMarkdown(file, card.imageMarkdown, client),
       card.answerMarkdown ? this.renderMarkdown(file, card.answerMarkdown, client) : Promise.resolve("")
     ]);
-    const probe = document.createElement("div");
-    probe.innerHTML = renderedImage;
+    const probe = createDiv();
+    probe.append(sanitizeHTMLToDom(renderedImage));
     const image = probe.querySelector("img");
     if (!image) {
       throw new Error(`第 ${card.startLine + 1} 行的 IO 題型沒有可用的圖片。`);
@@ -902,28 +888,32 @@ export default class AnkiFlashcardSyncPlugin extends Plugin {
     fields: Record<string, string>,
     revealed: boolean
   ): string {
-    const imageContainer = document.createElement("div");
-    imageContainer.innerHTML = fields.Image ?? "";
+    const imageFragment = sanitizeHTMLToDom(fields.Image ?? "");
     const embeddedLink = extractEmbeddedLinks(card.imageMarkdown)[0];
     const embeddedFile = embeddedLink
       ? this.app.metadataCache.getFirstLinkpathDest(embeddedLink, file.path)
       : null;
-    const image = imageContainer.querySelector("img");
+    const image = imageFragment.querySelector("img");
     if (image && embeddedFile instanceof TFile) {
       image.setAttribute("src", this.app.vault.getResourcePath(embeddedFile));
     }
-    const maskContainer = document.createElement("div");
-    maskContainer.innerHTML = fields.Mask ?? "";
+    const maskFragment = sanitizeHTMLToDom(fields.Mask ?? "");
     if (revealed) {
-      for (const mask of Array.from(maskContainer.querySelectorAll(".image-occlusion-mask"))) {
+      for (const mask of Array.from(maskFragment.querySelectorAll(".image-occlusion-mask"))) {
         mask.classList.add("image-occlusion-mask--revealed");
       }
     }
-    const answer = revealed && fields.Answer
-      ? `<div class="standard-answer-content">${fields.Answer}</div>`
-      : "";
-    const source = revealed ? fields["Back Extra"] ?? "" : "";
-    return `<div class="image-occlusion-stage">${imageContainer.innerHTML}${maskContainer.innerHTML}</div>${answer}${source}`;
+    const preview = createDiv();
+    const stage = preview.createDiv({ cls: "image-occlusion-stage" });
+    stage.append(imageFragment, maskFragment);
+    if (revealed && fields.Answer) {
+      const answer = preview.createDiv({ cls: "standard-answer-content" });
+      answer.append(sanitizeHTMLToDom(fields.Answer));
+    }
+    if (revealed && fields["Back Extra"]) {
+      preview.append(sanitizeHTMLToDom(fields["Back Extra"]));
+    }
+    return preview.innerHTML;
   }
 
   private async renderMarkdown(
@@ -933,7 +923,7 @@ export default class AnkiFlashcardSyncPlugin extends Plugin {
   ): Promise<string> {
     const component = new Component();
     component.load();
-    const container = document.createElement("div");
+    const container = createDiv();
     const latex = protectLatexForAnki(markdown);
     try {
       await MarkdownRenderer.render(this.app, latex.markdown, container, file.path, component);
@@ -1075,8 +1065,7 @@ export default class AnkiFlashcardSyncPlugin extends Plugin {
     let suspended = 0;
     let deleted = 0;
     let failed = 0;
-    for (let index = 0; index < files.length; index += 1) {
-      const file = files[index] as TFile;
+    for (const [index, file] of files.entries()) {
       this.setStatus(`Vault 同步：${index + 1}/${files.length}（${file.basename}）`);
       try {
         const result = await this.syncFile(file, false);
@@ -1103,13 +1092,16 @@ export default class AnkiFlashcardSyncPlugin extends Plugin {
       "重新產生"
     );
     if (!confirmed) return;
-    const source = await this.app.vault.read(file);
-    const regenerated = regenerateSyncIds(source, () => crypto.randomUUID());
-    const withFileId = ensureFileSyncId(regenerated.markdown, () => crypto.randomUUID());
-    const withCardIds = addMissingSyncIds(withFileId.markdown, () => crypto.randomUUID());
-    await this.app.vault.modify(file, withCardIds.markdown);
-    this.idsByPath.set(file.path, collectMarkdownSyncIds(withCardIds.markdown));
-    new Notice(`已重新產生 ${regenerated.replaced + withCardIds.added + (withFileId.added ? 1 : 0)} 個同步 ID。`);
+    let replaced = 0;
+    const updated = await this.app.vault.process(file, (source) => {
+      const regenerated = regenerateSyncIds(source, () => crypto.randomUUID());
+      const withFileId = ensureFileSyncId(regenerated.markdown, () => crypto.randomUUID());
+      const withCardIds = addMissingSyncIds(withFileId.markdown, () => crypto.randomUUID());
+      replaced = regenerated.replaced + withCardIds.added + (withFileId.added ? 1 : 0);
+      return withCardIds.markdown;
+    });
+    this.idsByPath.set(file.path, collectMarkdownSyncIds(updated));
+    new Notice(`已重新產生 ${replaced} 個同步 ID。`);
   }
 
   private async handleDeletedFile(path: string): Promise<void> {

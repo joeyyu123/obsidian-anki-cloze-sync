@@ -5,8 +5,6 @@ export interface AnkiSyncSettings {
   basicModelName: string;
   plainBasicModelName: string;
   imageOcclusionModelName: string;
-  /** @deprecated Kept so data written by versions before 1.1 can be migrated. */
-  deleteRemovedCards: boolean;
   removedCardAction: RemovedCardAction;
   autoSync: boolean;
   autoSyncDelayMs: number;
@@ -23,7 +21,6 @@ export const DEFAULT_SETTINGS: AnkiSyncSettings = {
   basicModelName: "Obsidian Basic",
   plainBasicModelName: "Obsidian Q&A",
   imageOcclusionModelName: "Obsidian Image Occlusion",
-  deleteRemovedCards: true,
   removedCardAction: "suspend",
   autoSync: true,
   autoSyncDelayMs: 1500,

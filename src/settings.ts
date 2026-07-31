@@ -10,7 +10,6 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.addClass("anki-cloze-sync-settings");
-    new Setting(containerEl).setName("Anki Flashcard Sync").setHeading();
 
     new Setting(containerEl)
       .setName("AnkiConnect URL")
@@ -96,7 +95,6 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.removedCardAction)
           .onChange(async (value) => {
             this.plugin.settings.removedCardAction = value as "keep" | "suspend" | "delete";
-            this.plugin.settings.deleteRemovedCards = value !== "keep";
             await this.plugin.saveSettings();
           })
       );

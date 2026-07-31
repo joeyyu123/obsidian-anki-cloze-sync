@@ -1,4 +1,4 @@
-import { App, Modal } from "obsidian";
+import { App, Modal, sanitizeHTMLToDom } from "obsidian";
 import type { SyncPreview } from "./types";
 
 export class SyncPreviewModal extends Modal {
@@ -26,7 +26,7 @@ export class SyncPreviewModal extends Modal {
     ] as const) {
       const item = summary.createDiv({ cls: "anki-sync-preview-stat" });
       item.createEl("strong", { text: String(value) });
-      item.createEl("span", { text: label });
+      item.createSpan({ text: label });
     }
     contentEl.createEl("p", {
       text: `牌組：${this.preview.deckName}｜標籤：${this.preview.tags.join("、") || "無"}`
@@ -55,10 +55,14 @@ export class SyncPreviewModal extends Modal {
         const columns = details.createDiv({ cls: "anki-sync-card-preview-columns" });
         const front = columns.createDiv();
         front.createEl("strong", { text: "正面" });
-        front.createDiv({ cls: "anki-sync-card-preview-content" }).innerHTML = card.frontHtml;
+        front
+          .createDiv({ cls: "anki-sync-card-preview-content" })
+          .append(sanitizeHTMLToDom(card.frontHtml));
         const back = columns.createDiv();
         back.createEl("strong", { text: "背面" });
-        back.createDiv({ cls: "anki-sync-card-preview-content" }).innerHTML = card.backHtml;
+        back
+          .createDiv({ cls: "anki-sync-card-preview-content" })
+          .append(sanitizeHTMLToDom(card.backHtml));
       }
     }
   }

@@ -1,9 +1,9 @@
 {
   "id": "anki-cloze-sync",
   "name": "Anki Flashcard Sync",
-  "version": "1.0.0",
-  "minAppVersion": "1.0.0",
-  "description": "Sync cloze, Q/A, code practice, and image occlusion flashcards from Obsidian to Anki.",
+  "version": "1.0.1",
+  "minAppVersion": "1.5.7",
+  "description": "Sync cloze, Q/A, code practice, and image occlusion flashcards from your notes to Anki.",
   "author": "Joey",
   "isDesktopOnly": true
 }

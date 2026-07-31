@@ -89,14 +89,14 @@ class ImageOcclusionEditorModal extends Modal {
 
     const heading = contentEl.createDiv({ cls: "anki-image-occlusion-heading" });
     const titleGroup = heading.createDiv();
-    titleGroup.createEl("span", {
+    titleGroup.createSpan({
       text: this.initial?.editing ? "VISUAL RECALL / EDIT" : "VISUAL RECALL / NEW",
       cls: "anki-image-occlusion-kicker"
     });
     titleGroup.createEl("h2", {
       text: this.initial?.editing ? "編輯多區域遮擋" : "建立多區域遮擋"
     });
-    heading.createEl("span", { text: this.file.name, cls: "anki-image-occlusion-filename" });
+    heading.createSpan({ text: this.file.name, cls: "anki-image-occlusion-filename" });
 
     contentEl.createEl("p", {
       text: "拖曳空白處新增遮罩；拖曳既有遮罩可移動，拖曳四角可縮放。下方清單可調整揭示順序或移除。",
@@ -154,7 +154,7 @@ class ImageOcclusionEditorModal extends Modal {
     stage.addEventListener("pointercancel", () => this.cancelPointerInteraction());
 
     const dataStrip = contentEl.createDiv({ cls: "anki-image-occlusion-data-strip" });
-    dataStrip.createEl("span", { text: "REVEAL QUEUE" });
+    dataStrip.createSpan({ text: "Reveal queue" });
     this.coordinateLabel = dataStrip.createEl("code", { text: "尚未框選" });
     this.maskList = contentEl.createDiv({ cls: "anki-image-occlusion-mask-list" });
     this.renderCommittedMasks();
@@ -394,7 +394,7 @@ class ImageOcclusionEditorModal extends Modal {
       });
       if (!overlay) return;
       this.applyMaskPosition(overlay, mask);
-      overlay.createEl("span", {
+      overlay.createSpan({
         text: String(index + 1),
         cls: "anki-image-occlusion-editor-mask-number"
       });

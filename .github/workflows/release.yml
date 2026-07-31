@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   release:
@@ -35,15 +37,21 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Lint
+        run: pnpm lint
+
       - name: Build
         run: pnpm build
 
-      - name: Publish GitHub release
-        uses: softprops/action-gh-release@v2
+      - name: Attest release assets
+        uses: actions/attest@v4
         with:
-          name: ${{ github.ref_name }}
-          generate_release_notes: true
-          files: |
+          subject-path: |
             main.js
             manifest.json
             styles.css
+
+      - name: Publish GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes main.js manifest.json styles.css

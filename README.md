@@ -1,5 +1,25 @@
 # Anki Flashcard Sync
 
+## English overview
+
+Anki Flashcard Sync sends flashcards written in your Markdown notes to Anki
+through AnkiConnect. It supports native cloze deletions, standard Q/A cards,
+code-practice cards with a multiline scratch editor, and interactive image
+occlusion cards. Stable file and card IDs let later syncs update the same Anki
+notes without resetting their review history.
+
+The plugin can sync the current note, the entire vault, or automatically after
+a note is saved. It also supports deck and tag overrides in frontmatter,
+LaTeX, local images and media attachments, sync previews, duplicate-ID
+diagnostics, and safe handling of cards removed from Markdown. Anki Desktop,
+the AnkiConnect add-on, and Obsidian Desktop 1.5.7 or later are required.
+
+For installation, install AnkiConnect with add-on code `2055492159`, keep Anki
+running, install **Anki Flashcard Sync** from the community plugin directory,
+and run **Sync current note to Anki** from the command palette.
+
+## 中文說明
+
 將 Obsidian Markdown 內的填空題、程式碼練習卡、標準正反面問答卡與影像遮擋題同步到 Anki。同步使用 [AnkiConnect](https://git.sr.ht/~foosoft/anki-connect)，每張卡片都有穩定 ID；修改題目後再次同步會更新原本的 Anki note，不會建立重複卡片。
 
 ## 功能
@@ -289,6 +309,7 @@ Obsidian。
 ```bash
 npm install
 npm test
+npm run lint
 npm run build
 npm run preview:cards
 ```
