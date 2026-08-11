@@ -1,6 +1,7 @@
 import type {
   ImageOcclusionMask,
   ParsedBasicCard,
+  ParsedChoiceCard,
   ParsedClozeCard,
   ParsedFlashcard,
   ParsedImageOcclusionCard
@@ -15,6 +16,9 @@ const QUESTION_PATTERN = /^\s*Q\s*[:：]\s*(.*)$/i;
 const ANSWER_PATTERN = /^\s*A\s*[:：]\s*(.*)$/i;
 const CODE_QUESTION_PATTERN = /^\s*QC\s*[:：]\s*(.*)$/i;
 const CODE_ANSWER_PATTERN = /^\s*AC\s*[:：]\s*(.*)$/i;
+export const CHOICE_QUESTION_PATTERN = /^\s*Q([SM])\s*[:：]\s*(.*)$/i;
+export const CHOICE_OPTION_PATTERN = /^\s*-\s+\[([ xX])\]\s+(.+?)\s*$/;
+export const CHOICE_EXPLANATION_PATTERN = /^\s*E\s*[:：]\s*(.*)$/i;
 export const IMAGE_OCCLUSION_PATTERN = /^\s*IO\s*[:：]\s*(.*)$/i;
 export const IMAGE_OCCLUSION_MASK_PATTERN =
   /^\s*<!--\s*MASK\s*[:：]\s*(.*?)\s*-->\s*$/i;
@@ -23,6 +27,7 @@ const REMOVED_NUMBERED_QUESTION_PATTERN = /^\s*Q(?:C)?\d+\s*[:：]/i;
 const isQuestionBoundary = (line: string): boolean =>
   QUESTION_PATTERN.test(line) ||
   CODE_QUESTION_PATTERN.test(line) ||
+  CHOICE_QUESTION_PATTERN.test(line) ||
   IMAGE_OCCLUSION_PATTERN.test(line) ||
   REMOVED_NUMBERED_QUESTION_PATTERN.test(line);
 
@@ -293,6 +298,138 @@ export function parseBasicCards(markdown: string): ParsedBasicCard[] {
 }
 
 /**
+ * Parses interactive choice cards. QS requires exactly one checked option;
+ * QM accepts one or more checked options. E adds an optional explanation.
+ */
+export function parseChoiceCards(markdown: string): ParsedChoiceCard[] {
+  const lines = markdown.split("\n");
+  const cards: ParsedChoiceCard[] = [];
+  let index = 0;
+  let inFence = false;
+  let inFrontmatter = lines[0]?.trim() === "---";
+
+  if (inFrontmatter) index = 1;
+
+  while (index < lines.length) {
+    const line = lines[index] ?? "";
+    if (inFrontmatter) {
+      if (line.trim() === "---") inFrontmatter = false;
+      index += 1;
+      continue;
+    }
+    if (FENCE_PATTERN.test(line)) {
+      inFence = !inFence;
+      index += 1;
+      continue;
+    }
+    if (inFence) {
+      index += 1;
+      continue;
+    }
+
+    const questionMatch = line.match(CHOICE_QUESTION_PATTERN);
+    if (!questionMatch) {
+      index += 1;
+      continue;
+    }
+
+    const mode = questionMatch[1]?.toUpperCase() === "S" ? "single" : "multiple";
+    const questionLines = [questionMatch[2] ?? ""];
+    const startLine = index;
+    let cursor = index + 1;
+
+    while (cursor < lines.length) {
+      const candidate = lines[cursor] ?? "";
+      if (CHOICE_OPTION_PATTERN.test(candidate)) break;
+      if (
+        candidate.trim() === "" ||
+        HEADING_OR_RULE_PATTERN.test(candidate) ||
+        isQuestionBoundary(candidate) ||
+        CHOICE_EXPLANATION_PATTERN.test(candidate) ||
+        SYNC_ID_PATTERN.test(candidate)
+      ) {
+        break;
+      }
+      questionLines.push(candidate);
+      cursor += 1;
+    }
+
+    const options: ParsedChoiceCard["options"] = [];
+    let endLine = startLine;
+    while (cursor < lines.length) {
+      const optionMatch = (lines[cursor] ?? "").match(CHOICE_OPTION_PATTERN);
+      if (!optionMatch) break;
+      options.push({
+        correct: (optionMatch[1] ?? "").toLowerCase() === "x",
+        markdown: optionMatch[2]?.trim() ?? ""
+      });
+      endLine = cursor;
+      cursor += 1;
+    }
+
+    const explanationLines: string[] = [];
+    const explanationMatch = (lines[cursor] ?? "").match(CHOICE_EXPLANATION_PATTERN);
+    if (explanationMatch) {
+      explanationLines.push(explanationMatch[1] ?? "");
+      endLine = cursor;
+      cursor += 1;
+      let inExplanationFence = false;
+      while (cursor < lines.length) {
+        const candidate = lines[cursor] ?? "";
+        if (FENCE_PATTERN.test(candidate)) {
+          inExplanationFence = !inExplanationFence;
+          explanationLines.push(candidate);
+          endLine = cursor;
+          cursor += 1;
+          continue;
+        }
+        if (
+          !inExplanationFence &&
+          (candidate.trim() === "" ||
+            HEADING_OR_RULE_PATTERN.test(candidate) ||
+            isQuestionBoundary(candidate) ||
+            SYNC_ID_PATTERN.test(candidate))
+        ) {
+          break;
+        }
+        explanationLines.push(candidate);
+        endLine = cursor;
+        cursor += 1;
+      }
+    }
+
+    let id: string | null = null;
+    let idLine: number | null = null;
+    const idMatch = (lines[cursor] ?? "").match(SYNC_ID_PATTERN);
+    if (idMatch) {
+      id = idMatch[1] ?? null;
+      idLine = cursor;
+      cursor += 1;
+    }
+
+    const questionMarkdown = questionLines.join("\n").trim();
+    const correctCount = options.filter((option) => option.correct).length;
+    const hasValidAnswer = mode === "single" ? correctCount === 1 : correctCount >= 1;
+    if (questionMarkdown && options.length >= 2 && hasValidAnswer) {
+      cards.push({
+        kind: "choice",
+        mode,
+        id,
+        questionMarkdown,
+        options,
+        explanationMarkdown: explanationLines.join("\n").trim(),
+        startLine,
+        endLine,
+        idLine
+      });
+    }
+    index = Math.max(cursor, index + 1);
+  }
+
+  return cards;
+}
+
+/**
  * Parses image-occlusion blocks with one or more masks. Coordinates are
  * percentages of the source image in x, y, width, height order so masks stay
  * aligned responsively and can be revealed in authoring order.
@@ -408,8 +545,9 @@ export function parseImageOcclusionCards(markdown: string): ParsedImageOcclusion
 
 export function parseFlashcards(markdown: string): ParsedFlashcard[] {
   const basicCards = parseBasicCards(markdown);
+  const choiceCards = parseChoiceCards(markdown);
   const imageOcclusionCards = parseImageOcclusionCards(markdown);
-  const structuredCards: ParsedFlashcard[] = [...basicCards, ...imageOcclusionCards];
+  const structuredCards: ParsedFlashcard[] = [...basicCards, ...choiceCards, ...imageOcclusionCards];
   const clozeCards = parseClozeCards(markdown).filter(
     (cloze) =>
       !structuredCards.some(

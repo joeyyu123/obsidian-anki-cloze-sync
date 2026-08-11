@@ -4,6 +4,8 @@ import {
   BASIC_CODE_BACK,
   BASIC_CODE_CSS,
   BASIC_CODE_FRONT,
+  CHOICE_BACK,
+  CHOICE_FRONT,
   CLOZE_BACK,
   CLOZE_FRONT,
   IMAGE_OCCLUSION_BACK,
@@ -203,6 +205,42 @@ export class AnkiConnectClient {
         name: modelName,
         templates: {
           [templateName]: { Front: IMAGE_OCCLUSION_FRONT, Back: IMAGE_OCCLUSION_BACK }
+        }
+      }
+    });
+    await this.invoke("updateModelStyling", {
+      model: { name: modelName, css: BASE_CARD_CSS }
+    });
+  }
+
+  async ensureChoiceModel(modelName: string): Promise<void> {
+    await this.ensureModel(
+      modelName,
+      ["Question", "Options", "Explanation", "Mode", "Back Extra"],
+      [
+        {
+          Name: "Card 1",
+          Front: CHOICE_FRONT,
+          Back: CHOICE_BACK
+        }
+      ],
+      false,
+      BASE_CARD_CSS
+    );
+
+    const templates = await this.invoke<Record<string, { Front: string; Back: string }>>(
+      "modelTemplates",
+      { modelName }
+    );
+    const templateName = Object.prototype.hasOwnProperty.call(templates, "Card 1")
+      ? "Card 1"
+      : Object.keys(templates)[0];
+    if (!templateName) throw new Error(`Anki 筆記類型「${modelName}」沒有可更新的卡片模板。`);
+    await this.invoke("updateModelTemplates", {
+      model: {
+        name: modelName,
+        templates: {
+          [templateName]: { Front: CHOICE_FRONT, Back: CHOICE_BACK }
         }
       }
     });

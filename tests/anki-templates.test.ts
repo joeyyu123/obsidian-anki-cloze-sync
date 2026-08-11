@@ -4,6 +4,8 @@ import {
   BASE_CARD_CSS,
   BASIC_CODE_BACK,
   BASIC_CODE_FRONT,
+  CHOICE_BACK,
+  CHOICE_FRONT,
   CLOZE_BACK,
   CLOZE_FRONT,
   IMAGE_OCCLUSION_BACK,
@@ -48,6 +50,30 @@ test("plain Q&A templates reveal the answer without a text input", () => {
   assert.doesNotMatch(PLAIN_BASIC_FRONT, /textarea|code-practice-input/);
   assert.match(PLAIN_BASIC_BACK, /參考答案/);
   assert.match(PLAIN_BASIC_BACK, /\{\{Back}}/);
+});
+
+test("choice templates preserve selections and classify review results", () => {
+  assert.match(CHOICE_FRONT, /\{\{Question}}/);
+  assert.match(CHOICE_FRONT, /data-mode="\{\{Mode}}"/);
+  assert.match(CHOICE_FRONT, /sessionStorage/);
+  assert.match(CHOICE_FRONT, /role.*checkbox/);
+  assert.match(CHOICE_BACK, /is-correct/);
+  assert.match(CHOICE_BACK, /is-incorrect/);
+  assert.match(CHOICE_BACK, /is-missed/);
+  assert.match(CHOICE_BACK, /\{\{#Explanation}}/);
+  assert.match(CHOICE_BACK, /\{\{Back Extra}}/);
+  for (const template of [CHOICE_FRONT, CHOICE_BACK]) {
+    const script = template.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+    assert.ok(script);
+    assert.doesNotThrow(() => Function(script));
+  }
+});
+
+test("choice styling has selected, correct, incorrect and missed states", () => {
+  assert.match(BASE_CARD_CSS, /\.choice-option\.is-selected/);
+  assert.match(BASE_CARD_CSS, /\.choice-option\.is-correct/);
+  assert.match(BASE_CARD_CSS, /\.choice-option\.is-incorrect/);
+  assert.match(BASE_CARD_CSS, /\.choice-option\.is-missed/);
 });
 
 test("image occlusion templates render multiple mask markup and reveal sequentially", () => {

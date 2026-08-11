@@ -8,6 +8,10 @@ export const BASE_CARD_CSS = `
   --teal: #087f73;
   --teal-soft: #d9ebe6;
   --amber: #c96a24;
+  --success: #24745f;
+  --success-soft: #dcece5;
+  --danger: #a64235;
+  --danger-soft: #f2dfdb;
   --editor: #18201f;
   --editor-raised: #222c2a;
   --editor-ink: #eef5ef;
@@ -44,6 +48,10 @@ export const BASE_CARD_CSS = `
   --teal: #5cc4b3;
   --teal-soft: #1b3934;
   --amber: #f0a15d;
+  --success: #72cbb0;
+  --success-soft: #18382f;
+  --danger: #ef8f80;
+  --danger-soft: #432622;
   --editor: #0c1110;
   --editor-raised: #151c1a;
   --editor-ink: #f2f5ef;
@@ -334,6 +342,91 @@ export const BASE_CARD_CSS = `
   line-height: 1.6;
 }
 
+.choice-board {
+  position: relative;
+  padding: clamp(14px, 2.5vw, 22px);
+  border: 1px solid var(--line);
+  border-radius: 18px 4px 18px 18px;
+  background:
+    linear-gradient(90deg, transparent 0 42px, rgba(201, 106, 36, 0.12) 42px 43px, transparent 43px),
+    repeating-linear-gradient(0deg, transparent 0 47px, rgba(23, 32, 30, 0.035) 47px 48px),
+    var(--paper-raised);
+  box-shadow: 0 18px 45px rgba(23, 32, 30, 0.06);
+}
+.choice-list { display: grid; gap: 10px; }
+.choice-option {
+  position: relative;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  min-height: 62px;
+  padding: 10px 14px 10px 8px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 9px 14px 14px 9px;
+  outline: none;
+  color: var(--ink);
+  background: var(--paper-raised);
+  box-shadow: 0 3px 0 rgba(23, 32, 30, 0.035);
+  cursor: pointer;
+  user-select: none;
+  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+.choice-option:hover { border-color: var(--teal); transform: translateX(3px); }
+.choice-option:focus-visible { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(8, 127, 115, 0.18); }
+.choice-option.is-selected {
+  border-color: var(--teal);
+  background: var(--teal-soft);
+  box-shadow: inset 4px 0 0 var(--teal), 0 4px 12px rgba(8, 127, 115, 0.1);
+}
+.choice-option-marker {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--muted);
+  background: var(--paper);
+  font: 800 10px/1 var(--mono);
+  transition: color 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+.choice-list[data-mode="multiple"] .choice-option-marker { border-radius: 7px; }
+.choice-option.is-selected .choice-option-marker { border-color: var(--teal); color: var(--paper-raised); background: var(--teal); }
+.choice-option-content { min-width: 0; font-size: clamp(17px, 2.1vw, 21px); line-height: 1.55; }
+.choice-option-content > :first-child { margin-top: 0; }
+.choice-option-content > :last-child { margin-bottom: 0; }
+.choice-option-result {
+  display: none;
+  margin-left: 10px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  font: 800 9px/1.2 var(--mono);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.choice-option.is-correct { border-color: var(--success); background: var(--success-soft); box-shadow: inset 4px 0 0 var(--success); }
+.choice-option.is-correct .choice-option-marker { border-color: var(--success); color: var(--paper-raised); background: var(--success); }
+.choice-option.is-correct .choice-option-result { display: inline-block; color: var(--paper-raised); background: var(--success); }
+.choice-option.is-incorrect { border-color: var(--danger); background: var(--danger-soft); box-shadow: inset 4px 0 0 var(--danger); }
+.choice-option.is-incorrect .choice-option-marker { border-color: var(--danger); color: var(--paper-raised); background: var(--danger); }
+.choice-option.is-incorrect .choice-option-result { display: inline-block; color: var(--paper-raised); background: var(--danger); }
+.choice-option.is-missed { border-style: dashed; border-color: var(--amber); background: var(--paper-raised); }
+.choice-option.is-missed .choice-option-marker { border-color: var(--amber); color: var(--paper-raised); background: var(--amber); }
+.choice-option.is-missed .choice-option-result { display: inline-block; color: var(--paper-raised); background: var(--amber); }
+.choice-answer-summary {
+  margin-bottom: 14px;
+  padding: 10px 13px;
+  border-left: 3px solid var(--teal);
+  color: var(--muted);
+  background: var(--teal-soft);
+  font: 700 10px/1.55 var(--mono);
+  letter-spacing: 0.025em;
+}
+.choice-explanation { margin-top: 18px; }
+.choice-explanation .standard-answer-content { font-size: clamp(17px, 2.2vw, 22px); }
+.choice-mode-hint { color: var(--teal); font-weight: 800; }
+
 .image-occlusion-panel {
   position: relative;
   display: grid;
@@ -521,6 +614,9 @@ export const BASE_CARD_CSS = `
   .workspace-panel { padding: 10px; border-radius: 13px 3px 13px 13px; }
   .code-practice-input { min-height: 48vh; padding: 14px; }
   .answer-grid { grid-template-columns: 1fr; }
+  .choice-board { padding: 10px; background-position: -8px 0, 0 0, 0 0; }
+  .choice-option { grid-template-columns: 38px minmax(0, 1fr); padding-right: 10px; }
+  .choice-option-result { grid-column: 2; width: max-content; margin: 6px 0 0; }
   .image-occlusion-reveal-controls { align-items: stretch; flex-direction: column; }
   .image-occlusion-reveal-controls button { width: 100%; }
   .obsidian-source { align-items: flex-start; flex-direction: column; }
@@ -657,6 +753,147 @@ export const PLAIN_BASIC_BACK = `
     <div class="standard-answer-content">{{Back}}</div>
   </section>
 </main>
+`;
+
+export const CHOICE_FRONT = `
+<main class="review-shell review-shell--choice">
+  <header class="review-header">
+    <div class="review-identity">
+      <span class="review-mark">CH</span>
+      <span class="review-kicker">Decision Practice Sheet</span>
+    </div>
+    <span class="review-state">Choose</span>
+  </header>
+  <section class="prompt-panel">
+    <div class="section-label"><span class="section-number">01</span> 題目</div>
+    <div class="prompt-content">{{Question}}</div>
+  </section>
+  <section class="choice-board">
+    <div class="section-label"><span class="section-number">02</span> 作答</div>
+    <div id="choice-front-list" class="choice-list" data-mode="{{Mode}}">{{Options}}</div>
+  </section>
+  <div class="recall-instruction"><span class="choice-mode-hint" id="choice-mode-hint"></span>選好後，點擊 Anki 的「顯示答案」</div>
+</main>
+<script>
+(() => {
+  const storageKey = "obsidian-anki-choice-selection";
+  const list = document.getElementById("choice-front-list");
+  const hint = document.getElementById("choice-mode-hint");
+  if (!list) return;
+  const mode = list.getAttribute("data-mode") === "multiple" ? "multiple" : "single";
+  const options = Array.from(list.querySelectorAll(".choice-option"));
+  let selected = [];
+  try { sessionStorage.setItem(storageKey, "[]"); } catch (_) {}
+  if (hint) hint.textContent = mode === "multiple" ? "多選題 · 可選多項 · " : "單選題 · 選一項 · ";
+
+  const persist = () => {
+    try { sessionStorage.setItem(storageKey, JSON.stringify(selected)); } catch (_) {}
+    window.__obsidianAnkiChoiceSelection = selected.slice();
+  };
+  const render = () => {
+    options.forEach((option, index) => {
+      const active = selected.includes(index);
+      option.classList.toggle("is-selected", active);
+      option.setAttribute("aria-checked", String(active));
+    });
+  };
+  const choose = (index) => {
+    if (mode === "single") selected = [index];
+    else selected = selected.includes(index)
+      ? selected.filter((value) => value !== index)
+      : selected.concat(index);
+    render();
+    persist();
+  };
+
+  options.forEach((option, index) => {
+    option.setAttribute("role", mode === "multiple" ? "checkbox" : "radio");
+    option.setAttribute("tabindex", "0");
+    option.setAttribute("aria-checked", "false");
+    option.addEventListener("click", () => choose(index));
+    option.addEventListener("keydown", (event) => {
+      if (event.key !== " " && event.key !== "Enter") return;
+      event.preventDefault();
+      choose(index);
+    });
+  });
+  persist();
+})();
+</script>
+`;
+
+export const CHOICE_BACK = `
+<main class="review-shell review-shell--choice">
+  <header class="review-header">
+    <div class="review-identity">
+      <span class="review-mark">CH</span>
+      <span class="review-kicker">Decision Practice Sheet</span>
+    </div>
+    <span class="review-state">Review</span>
+  </header>
+  <section class="prompt-panel">
+    <div class="section-label"><span class="section-number">01</span> 題目</div>
+    <div class="prompt-content">{{Question}}</div>
+  </section>
+  <section class="choice-board">
+    <div class="section-label"><span class="section-number">02</span> 作答結果</div>
+    <div id="choice-answer-summary" class="choice-answer-summary" aria-live="polite">正在核對答案…</div>
+    <div id="choice-back-list" class="choice-list" data-mode="{{Mode}}">{{Options}}</div>
+  </section>
+  {{#Explanation}}
+  <section class="standard-answer-panel choice-explanation">
+    <div class="section-label"><span class="section-number">03</span> 詳解</div>
+    <div class="standard-answer-content">{{Explanation}}</div>
+  </section>
+  {{/Explanation}}
+  <section class="image-occlusion-meta">{{Back Extra}}</section>
+</main>
+<script>
+(() => {
+  const storageKey = "obsidian-anki-choice-selection";
+  const list = document.getElementById("choice-back-list");
+  const summary = document.getElementById("choice-answer-summary");
+  if (!list) return;
+  const options = Array.from(list.querySelectorAll(".choice-option"));
+  let selected = Array.isArray(window.__obsidianAnkiChoiceSelection)
+    ? window.__obsidianAnkiChoiceSelection
+    : [];
+  try {
+    const stored = JSON.parse(sessionStorage.getItem(storageKey) || "[]");
+    if (Array.isArray(stored)) selected = stored.filter((value) => Number.isInteger(value));
+  } catch (_) {}
+
+  let correctSelections = 0;
+  let wrongSelections = 0;
+  let missed = 0;
+  options.forEach((option, index) => {
+    const correct = option.getAttribute("data-correct") === "true";
+    const chosen = selected.includes(index);
+    const result = option.querySelector(".choice-option-result");
+    option.removeAttribute("tabindex");
+    option.setAttribute("aria-disabled", "true");
+    if (chosen && correct) {
+      correctSelections += 1;
+      option.classList.add("is-correct");
+      if (result) result.textContent = "正確";
+    } else if (chosen) {
+      wrongSelections += 1;
+      option.classList.add("is-incorrect");
+      if (result) result.textContent = "選錯";
+    } else if (correct) {
+      missed += 1;
+      option.classList.add("is-missed");
+      if (result) result.textContent = "漏選";
+    }
+  });
+
+  if (summary) {
+    if (selected.length === 0) summary.textContent = "這次未作答；橘色虛線標出了正確選項。";
+    else if (wrongSelections === 0 && missed === 0) summary.textContent = "完全正確 · 已選中所有正確選項。";
+    else summary.textContent = "核對結果 · 答對 " + correctSelections + " 項，選錯 " + wrongSelections + " 項，漏選 " + missed + " 項。";
+  }
+})();
+</script>
 `;
 
 export const IMAGE_OCCLUSION_FRONT = `

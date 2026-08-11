@@ -4,6 +4,7 @@ export interface AnkiSyncSettings {
   modelName: string;
   basicModelName: string;
   plainBasicModelName: string;
+  choiceModelName: string;
   imageOcclusionModelName: string;
   removedCardAction: RemovedCardAction;
   autoSync: boolean;
@@ -20,6 +21,7 @@ export const DEFAULT_SETTINGS: AnkiSyncSettings = {
   modelName: "Obsidian Cloze",
   basicModelName: "Obsidian Basic",
   plainBasicModelName: "Obsidian Q&A",
+  choiceModelName: "Obsidian Choice",
   imageOcclusionModelName: "Obsidian Image Occlusion",
   removedCardAction: "suspend",
   autoSync: true,
@@ -68,6 +70,23 @@ export interface ParsedBasicCard {
   idLine: number | null;
 }
 
+export interface ChoiceOption {
+  markdown: string;
+  correct: boolean;
+}
+
+export interface ParsedChoiceCard {
+  kind: "choice";
+  mode: "single" | "multiple";
+  id: string | null;
+  questionMarkdown: string;
+  options: ChoiceOption[];
+  explanationMarkdown: string;
+  startLine: number;
+  endLine: number;
+  idLine: number | null;
+}
+
 export interface ImageOcclusionMask {
   x: number;
   y: number;
@@ -86,7 +105,11 @@ export interface ParsedImageOcclusionCard {
   idLine: number | null;
 }
 
-export type ParsedFlashcard = ParsedClozeCard | ParsedBasicCard | ParsedImageOcclusionCard;
+export type ParsedFlashcard =
+  | ParsedClozeCard
+  | ParsedBasicCard
+  | ParsedChoiceCard
+  | ParsedImageOcclusionCard;
 
 export interface SyncResult {
   created: number;

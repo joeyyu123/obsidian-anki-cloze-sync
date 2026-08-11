@@ -4,6 +4,7 @@ import {
   addMissingSyncIds,
   ensureFileSyncId,
   parseBasicCards,
+  parseChoiceCards,
   parseClozeCards,
   parseFlashcards,
   parseImageOcclusionCards,
@@ -144,6 +145,68 @@ test("keeps removed numbered questions out of a preceding answer", () => {
   const cards = parseBasicCards("Q: Current\nA: Answer\nQ1: Removed\nA1: Removed answer");
   assert.equal(cards.length, 1);
   assert.equal(cards[0]?.answerMarkdown, "Answer");
+});
+
+test("parses QS as a single-choice card with an optional explanation", () => {
+  const source = [
+    "QS: HTTP 的預設連接埠是？",
+    "- [ ] 21",
+    "- [ ] 22",
+    "- [x] **80**",
+    "- [ ] 443",
+    "E: HTTPS 才預設使用 443。",
+    "<!-- anki-sync-id: http-port -->"
+  ].join("\n");
+  const cards = parseChoiceCards(source);
+
+  assert.equal(cards.length, 1);
+  assert.equal(cards[0]?.mode, "single");
+  assert.equal(cards[0]?.questionMarkdown, "HTTP 的預設連接埠是？");
+  assert.deepEqual(cards[0]?.options, [
+    { markdown: "21", correct: false },
+    { markdown: "22", correct: false },
+    { markdown: "**80**", correct: true },
+    { markdown: "443", correct: false }
+  ]);
+  assert.equal(cards[0]?.explanationMarkdown, "HTTPS 才預設使用 443。");
+  assert.equal(cards[0]?.id, "http-port");
+});
+
+test("parses QM with multiple correct answers and full-width punctuation", () => {
+  const cards = parseChoiceCards([
+    "QM：下列哪些是 JavaScript primitive？",
+    "- [X] string",
+    "- [x] bigint",
+    "- [ ] Array",
+    "- [x] undefined"
+  ].join("\n"));
+
+  assert.equal(cards.length, 1);
+  assert.equal(cards[0]?.mode, "multiple");
+  assert.deepEqual(cards[0]?.options.map((option) => option.correct), [true, true, false, true]);
+});
+
+test("rejects choice cards with invalid answer counts", () => {
+  assert.deepEqual(parseChoiceCards("QS: Pick one\n- [x] A\n- [x] B"), []);
+  assert.deepEqual(parseChoiceCards("QM: Pick many\n- [ ] A\n- [ ] B"), []);
+  assert.deepEqual(parseChoiceCards("QS: Too few\n- [x] A"), []);
+});
+
+test("keeps a preceding Q/A answer separate from an adjacent choice card", () => {
+  const source = "Q: One?\nA: First\nQS: Two?\n- [ ] A\n- [x] B";
+  const cards = parseFlashcards(source);
+  assert.deepEqual(cards.map((card) => card.kind), ["plain", "choice"]);
+  assert.equal(cards[0]?.kind === "plain" ? cards[0].answerMarkdown : null, "First");
+});
+
+test("adds a stable id to a choice card and does not duplicate it", () => {
+  const source = "QS: Pick one\n- [ ] A\n- [x] B";
+  const first = addMissingSyncIds(source, () => "choice-stable");
+  const second = addMissingSyncIds(first.markdown, () => "unexpected");
+
+  assert.equal(first.added, 1);
+  assert.equal(second.added, 0);
+  assert.equal(parseChoiceCards(second.markdown)[0]?.id, "choice-stable");
 });
 
 test("adds stable ids to mixed cloze and basic cards", () => {
@@ -350,6 +413,21 @@ test("diagnoses duplicate ids and incomplete questions", () => {
 test("diagnoses malformed image occlusion blocks", () => {
   const diagnostics = diagnoseMarkdown("IO: ![[heart.png]]\n<!-- MASK: 80, 80, 30, 30 -->");
   assert.ok(diagnostics.some((item) => item.line === 1 && item.message.includes("影像遮擋")));
+});
+
+test("diagnoses invalid single- and multiple-choice answers", () => {
+  const diagnostics = diagnoseMarkdown([
+    "QS: Invalid single",
+    "- [x] A",
+    "- [x] B",
+    "",
+    "QM: Invalid multiple",
+    "- [ ] A",
+    "- [ ] B"
+  ].join("\n"));
+
+  assert.ok(diagnostics.some((item) => item.line === 1 && item.message.includes("剛好")));
+  assert.ok(diagnostics.some((item) => item.line === 5 && item.message.includes("至少")));
 });
 
 test("accepts consecutive masks without orphan diagnostics", () => {

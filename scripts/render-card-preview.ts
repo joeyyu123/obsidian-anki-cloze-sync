@@ -3,6 +3,8 @@ import {
   BASE_CARD_CSS,
   BASIC_CODE_BACK,
   BASIC_CODE_FRONT,
+  CHOICE_BACK,
+  CHOICE_FRONT,
   CLOZE_BACK,
   IMAGE_OCCLUSION_BACK,
   IMAGE_OCCLUSION_FRONT,
@@ -36,6 +38,18 @@ const plainQuestion = `
 const plainAnswer = `
 <p>根節點保存整棵 Min Heap 的<strong>最小值</strong>。</p>
 <div class="obsidian-source"><a href="#">在 Obsidian 開啟「Heap」</a></div>`;
+const choiceQuestion = `
+<h2>下列哪些操作的時間複雜度是 <code>O(log n)</code>？</h2>
+<p>以平衡搜尋樹與二元堆的典型實作為準。</p>`;
+const choiceOptions = [
+  [true, "在 Min Heap 插入元素"],
+  [false, "在未排序陣列搜尋任意值"],
+  [true, "在 AVL Tree 搜尋鍵值"],
+  [false, "讀取陣列指定索引"]
+].map(([correct, content], index) =>
+  `<div class="choice-option" data-choice-index="${index}" data-correct="${correct}"><span class="choice-option-marker">${index + 1}</span><div class="choice-option-content"><p>${content}</p></div><span class="choice-option-result"></span></div>`
+).join("");
+const choiceExplanation = `<p>Heap 插入與 AVL Tree 搜尋都沿著樹高移動；未排序陣列搜尋是 <code>O(n)</code>，陣列索引存取是 <code>O(1)</code>。</p>`;
 const occlusionSvg = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480">
   <rect width="800" height="480" fill="#dfe9e4"/>
@@ -67,6 +81,23 @@ const plainBack = replaceFields(PLAIN_BASIC_BACK, {
   Front: plainQuestion,
   Back: plainAnswer
 });
+const choiceFields = {
+  Question: choiceQuestion,
+  Options: choiceOptions,
+  Explanation: choiceExplanation,
+  Mode: "multiple",
+  "Back Extra": `<div class="obsidian-source"><a href="#">在 Obsidian 開啟「Complexity」</a></div>`
+};
+const choiceFront = replaceFields(CHOICE_FRONT, choiceFields)
+  .replace(/<script>[\s\S]*?<\/script>/g, "")
+  .replace('class="choice-option" data-choice-index="0"', 'class="choice-option is-selected" data-choice-index="0"');
+const choiceBack = replaceFields(CHOICE_BACK, choiceFields)
+  .replace("{{#Explanation}}", "")
+  .replace("{{/Explanation}}", "")
+  .replace(/<script>[\s\S]*?<\/script>/g, "")
+  .replace('class="choice-option" data-choice-index="0"', 'class="choice-option is-correct" data-choice-index="0"')
+  .replace('class="choice-option" data-choice-index="2"', 'class="choice-option is-missed" data-choice-index="2"')
+  .replace("正在核對答案…", "核對結果 · 答對 1 項，選錯 0 項，漏選 1 項。");
 const occlusionFields = {
   Image: occlusionImage,
   Mask: [
@@ -105,6 +136,8 @@ const html = `<!doctype html>
     <section class="card nightMode">${back}</section>
     <section class="card">${plainFront}</section>
     <section class="card nightMode">${plainBack}</section>
+    <section class="card">${choiceFront}</section>
+    <section class="card nightMode">${choiceBack}</section>
     <section class="card">${occlusionFront}</section>
     <section class="card nightMode">${occlusionBack}</section>
     <section class="card cloze-preview">${clozeCard}</section>

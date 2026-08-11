@@ -4,7 +4,7 @@
 
 Anki Flashcard Sync sends flashcards written in your Markdown notes to Anki
 through AnkiConnect. It supports native cloze deletions, standard Q/A cards,
-code-practice cards with a multiline scratch editor, and interactive image
+interactive single- and multiple-choice cards, code-practice cards with a multiline scratch editor, and interactive image
 occlusion cards. Stable file and card IDs let later syncs update the same Anki
 notes without resetting their review history.
 
@@ -20,13 +20,14 @@ and run **Sync current note to Anki** from the command palette.
 
 ## 中文說明
 
-將 Obsidian Markdown 內的填空題、程式碼練習卡、標準正反面問答卡與影像遮擋題同步到 Anki。同步使用 [AnkiConnect](https://git.sr.ht/~foosoft/anki-connect)，每張卡片都有穩定 ID；修改題目後再次同步會更新原本的 Anki note，不會建立重複卡片。
+將 Obsidian Markdown 內的填空題、程式碼練習卡、標準正反面問答卡、單選／多選題與影像遮擋題同步到 Anki。同步使用 [AnkiConnect](https://git.sr.ht/~foosoft/anki-connect)，每張卡片都有穩定 ID；修改題目後再次同步會更新原本的 Anki note，不會建立重複卡片。
 
 ## 功能
 
 - 支援 Anki 原生 Cloze（填空）語法。
 - 支援不編號的 `Q:`／`A:` 格式，作為沒有輸入框的標準正反面問答卡。
 - 支援不編號的 `QC:`／`AC:` 格式，作為程式碼練習卡。
+- 支援 `QS:` 單選題與 `QM:` 多選題；作答結果會在背面標示答對、選錯與漏選。
 - 支援互動式影像遮擋編輯器：新增或重新開啟既有卡片，移動、縮放與排序遮罩，並以不干擾閱讀的 `<!-- MASK: ... -->` 註解保存。
 - 支援 `$...$` 行內 LaTeX 與 `$$...$$` 區塊 LaTeX，並轉成 Anki 原生 MathJax。
 - QC/AC 卡提供多行程式碼草稿區；顯示答案後並排呈現作答與參考答案，不自動判分。
@@ -36,6 +37,7 @@ and run **Sync current note to Anki** from the command palette.
 - 從 Markdown 移除卡片後，可選擇保留、暫停或確認後永久刪除對應的 Anki note。
 - 支援目前筆記、整個 Vault，以及儲存後自動同步。
 - 自動建立指定的 Anki 牌組，以及 Cloze、Basic、Q&A 與 Image Occlusion 筆記類型。
+- 自動建立共用的 Choice 筆記類型，單選與多選不需分開維護模板。
 - 同步前可預覽新增、更新、不變與移除數量，並逐張檢查正反面內容。
 - 預設以「暫停並標記」取代永久刪除，保留 Anki 複習紀錄；硬刪除一定要求確認。
 - 刪除整份 Markdown 筆記時，也能保留、暫停或確認後刪除其 Anki notes。
@@ -103,6 +105,34 @@ push(value: T): void {
 - 獨立深色程式碼工作區、等寬字型與橫向程式碼捲動。
 - Anki 夜間模式配色，以及更易辨識的 Obsidian 來源按鈕。
 
+### 單選題與多選題
+
+單選題使用 `QS`（Question Single）。正確選項用 `[x]` 標記，而且必須剛好一個：
+
+```markdown
+QS: HTTP 的預設連接埠是？
+- [ ] 21
+- [ ] 22
+- [x] 80
+- [ ] 443
+E: HTTP 預設使用 80；HTTPS 才是 443。
+```
+
+多選題使用 `QM`（Question Multiple），可以標記一個以上的正確選項：
+
+```markdown
+QM：下列哪些是 JavaScript 的 primitive？
+- [x] string
+- [x] bigint
+- [ ] Array
+- [x] undefined
+E：Array 屬於 object。
+```
+
+`QS/QM/E` 支援半形或全形冒號，`E`（Explanation）詳解可以省略。每題至少要有兩個非空白選項；格式不完整、`QS` 沒有剛好一個答案，或 `QM` 沒有任何答案時，預覽診斷會指出問題且不會同步該題。
+
+Anki 正面會依題型呈現單選或多選操作，並暫存這一次的選擇。點擊 Anki 的「顯示答案」後，背面以綠色標示答對、紅色標示選錯、橘色虛線標示漏選，再顯示選填的詳解。作答內容只用於當次正反面核對，不會寫回 Markdown；最終仍由使用者按 Anki 的 Again、Hard、Good 或 Easy 評分。
+
 ### 影像遮擋題
 
 在 Markdown 編輯畫面開啟命令面板，執行「新增或編輯影像遮擋卡片」：
@@ -144,7 +174,7 @@ A: 心臟構造重點
 
 ### LaTeX 數學公式
 
-題目、答案與 Cloze 都能使用 Obsidian 熟悉的 LaTeX 寫法。行內公式使用單一 `$`：
+題目、答案、選擇題選項／詳解與 Cloze 都能使用 Obsidian 熟悉的 LaTeX 寫法。行內公式使用單一 `$`：
 
 ```markdown
 Q: 計算 $\frac{1}{2}+\frac{1}{3}$。
@@ -234,7 +264,7 @@ A: Example sentence
 <!-- anki-sync-id: 90b7f023-4eb7-4fa8-9c65-b8e915ed9be8 -->
 ```
 
-問答卡與影像遮擋卡也會使用相同機制：
+問答卡、選擇題與影像遮擋卡也會使用相同機制：
 
 ```markdown
 Q: 1+1 = ?
@@ -244,6 +274,12 @@ A: 2
 QC: 請實作 Heap 的 push。
 AC: 將元素加入尾端後執行 bubble up。
 <!-- anki-sync-id: e1ca87fb-6d08-41fc-9c06-9eead65d7b5e -->
+
+QS: HTTP 的預設連接埠是？
+- [ ] 21
+- [x] 80
+E: HTTPS 預設使用 443。
+<!-- anki-sync-id: b5385732-b80a-45aa-9295-cfd8b827f4ad -->
 
 IO: ![[anatomy/heart.png]]
 <!-- MASK: 12.5, 24, 30, 18.25 -->
@@ -262,7 +298,7 @@ A: 心臟構造重點
 1. 在 Anki 安裝 AnkiConnect（AnkiWeb add-on code：`2055492159`），並保持 Anki 開啟。
 2. 正式收錄後，從 Obsidian 的「設定 → 第三方外掛 → 瀏覽」搜尋 **Anki Flashcard Sync** 並安裝。
 3. 在 Obsidian 的「設定 → 第三方外掛」啟用 **Anki Flashcard Sync**。
-4. 建立填空、問答或影像遮擋卡後，從命令面板執行「同步目前筆記到 Anki」，或使用左側功能區的按鈕同步整個 Vault。
+4. 建立填空、問答、選擇題或影像遮擋卡後，從命令面板執行「同步目前筆記到 Anki」，或使用左側功能區的按鈕同步整個 Vault。
 
 若要在正式收錄前手動安裝，請從 GitHub Releases 下載 `main.js`、`manifest.json`
 與 `styles.css`，放入 Vault 的 `.obsidian/plugins/anki-cloze-sync/` 後重新載入
@@ -274,6 +310,7 @@ Obsidian。
 - Cloze 筆記類型：`Obsidian Cloze`
 - 程式碼練習筆記類型：`Obsidian Basic`
 - 標準問答筆記類型：`Obsidian Q&A`
+- 選擇題筆記類型：`Obsidian Choice`
 - 影像遮擋筆記類型：`Obsidian Image Occlusion`
 - AnkiConnect URL：`http://127.0.0.1:8765`
 
@@ -284,11 +321,12 @@ Obsidian。
 - 修改題目或答案後，儲存檔案即可自動更新 Anki；也可手動同步。
 - 標準問答卡的正面只顯示問題，背面顯示問題、答案及返回 Obsidian 的連結。
 - 程式碼練習卡的正面顯示問題與草稿輸入框，背面顯示草稿與參考答案。
+- 選擇題正面可點選答案，背面標示答對、選錯與漏選；選擇只保留於當次複習。
 - 程式碼草稿只用於當次複習時的前後面顯示，不會寫回 Markdown 或儲存成 Anki note 欄位。
 - 影像遮擋卡正面以編號實色區塊遮住多個部位；背面每按一次「揭示下一個」才依框選順序移除一個遮罩，最後顯示選填的補充答案。
 - 同一段落可以有 `c1`、`c2` 等多個 cloze，Anki 會依原生規則產生多張 card。
 - LaTeX 區塊公式在窄螢幕超出卡片寬度時可以橫向捲動。
-- 刪除完整的 `Q/A`、`QC/AC`、`IO/MASK` 題組或 cloze 段落後，下次同步會依「卡片從 Markdown 移除後」設定處理。
+- 刪除完整的 `Q/A`、`QC/AC`、`QS/QM`、`IO/MASK` 題組或 cloze 段落後，下次同步會依「卡片從 Markdown 移除後」設定處理。
 - 移除卡片後預設會在 Anki 加上 `obsidian_sync_removed` 標籤並暫停 cards，不會破壞複習紀錄。
 - 設定可改為「保留不處理」或「永久刪除」；永久刪除只會在手動同步確認後執行。自動同步與整庫同步不會在背景硬刪除。
 - 只會刪除帶有此外掛來源檔案 ID 的 notes，不會刪除手動建立或來自其他筆記的卡片。
@@ -314,4 +352,4 @@ npm run build
 npm run preview:cards
 ```
 
-`preview:cards` 會產生本機 `card-preview.html`，方便在瀏覽器同時檢查程式碼練習、標準問答、影像遮擋、亮色、深色與 cloze 卡片。建議在測試 Vault 開發，避免外掛錯誤影響主要筆記庫。
+`preview:cards` 會產生本機 `card-preview.html`，方便在瀏覽器同時檢查程式碼練習、標準問答、選擇題、影像遮擋、亮色、深色與 cloze 卡片。建議在測試 Vault 開發，避免外掛錯誤影響主要筆記庫。

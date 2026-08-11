@@ -43,6 +43,7 @@ import {
   type FileSyncRegistry,
   type NoteFileConfig,
   type ParsedBasicCard,
+  type ParsedChoiceCard,
   type ParsedClozeCard,
   type ParsedFlashcard,
   type ParsedImageOcclusionCard,
@@ -437,11 +438,15 @@ export default class AnkiFlashcardSyncPlugin extends Plugin {
         ? fields.Text ?? ""
         : card.kind === "image-occlusion"
           ? this.buildImageOcclusionPreview(file, card, fields, false)
+          : card.kind === "choice"
+            ? this.buildChoicePreview(fields, false)
           : fields.Front ?? "";
       const backHtml = card.kind === "cloze"
         ? fields["Back Extra"] ?? ""
         : card.kind === "image-occlusion"
           ? this.buildImageOcclusionPreview(file, card, fields, true)
+          : card.kind === "choice"
+            ? this.buildChoicePreview(fields, true)
           : fields.Back ?? "";
       if (!card.id) {
         base.created += 1;
@@ -828,6 +833,7 @@ export default class AnkiFlashcardSyncPlugin extends Plugin {
   ): Promise<Record<string, string>> {
     if (card.kind === "cloze") return this.buildClozeFields(file, card, client);
     if (card.kind === "image-occlusion") return this.buildImageOcclusionFields(file, card, client);
+    if (card.kind === "choice") return this.buildChoiceFields(file, card, client);
     return this.buildBasicFields(file, card, client);
   }
 
@@ -880,6 +886,61 @@ export default class AnkiFlashcardSyncPlugin extends Plugin {
       Answer: answer,
       "Back Extra": this.buildSourceLink(file)
     };
+  }
+
+  private async buildChoiceFields(
+    file: TFile,
+    card: ParsedChoiceCard,
+    client: AnkiConnectClient | null
+  ): Promise<Record<string, string>> {
+    const [question, explanation, renderedOptions] = await Promise.all([
+      this.renderMarkdown(file, card.questionMarkdown, client),
+      card.explanationMarkdown
+        ? this.renderMarkdown(file, card.explanationMarkdown, client)
+        : Promise.resolve(""),
+      Promise.all(card.options.map((option) => this.renderMarkdown(file, option.markdown, client)))
+    ]);
+    const options = renderedOptions.map((content, index) => {
+      const option = card.options[index];
+      return [
+        `<div class="choice-option" data-choice-index="${index}" data-correct="${option?.correct === true}">`,
+        `<span class="choice-option-marker" aria-hidden="true">${index + 1}</span>`,
+        `<div class="choice-option-content">${content}</div>`,
+        '<span class="choice-option-result"></span>',
+        "</div>"
+      ].join("");
+    }).join("");
+    return {
+      Question: question,
+      Options: options,
+      Explanation: explanation,
+      Mode: card.mode,
+      "Back Extra": this.buildSourceLink(file)
+    };
+  }
+
+  private buildChoicePreview(fields: Record<string, string>, revealed: boolean): string {
+    const options = sanitizeHTMLToDom(fields.Options ?? "");
+    const list = createEl("ol");
+    for (const option of Array.from(options.querySelectorAll<HTMLElement>(".choice-option"))) {
+      const item = list.createEl("li");
+      const content = option.querySelector(".choice-option-content");
+      if (revealed && option.dataset.correct === "true") {
+        item.createEl("strong", { text: "正確答案：" });
+      }
+      if (content) item.append(...Array.from(content.childNodes).map((node) => node.cloneNode(true)));
+    }
+    const preview = createDiv();
+    preview.append(sanitizeHTMLToDom(fields.Question ?? ""), list);
+    if (revealed && fields.Explanation) {
+      preview.createEl("hr");
+      const explanation = preview.createDiv();
+      explanation.append(sanitizeHTMLToDom(fields.Explanation));
+    }
+    if (revealed && fields["Back Extra"]) {
+      preview.append(sanitizeHTMLToDom(fields["Back Extra"]));
+    }
+    return preview.innerHTML;
   }
 
   private buildImageOcclusionPreview(
@@ -946,6 +1007,7 @@ export default class AnkiFlashcardSyncPlugin extends Plugin {
   private modelForCard(card: ParsedFlashcard): string {
     if (card.kind === "cloze") return this.settings.modelName;
     if (card.kind === "image-occlusion") return this.settings.imageOcclusionModelName;
+    if (card.kind === "choice") return this.settings.choiceModelName;
     return card.kind === "plain" ? this.settings.plainBasicModelName : this.settings.basicModelName;
   }
 
@@ -979,6 +1041,11 @@ export default class AnkiFlashcardSyncPlugin extends Plugin {
     if (cards.some((card) => card.kind === "plain")) {
       await this.ensureInfrastructureOnce(`plain:${endpoint}:${this.settings.plainBasicModelName}`, () =>
         client.ensurePlainBasicModel(this.settings.plainBasicModelName)
+      );
+    }
+    if (cards.some((card) => card.kind === "choice")) {
+      await this.ensureInfrastructureOnce(`choice:${endpoint}:${this.settings.choiceModelName}`, () =>
+        client.ensureChoiceModel(this.settings.choiceModelName)
       );
     }
     if (cards.some((card) => card.kind === "image-occlusion")) {

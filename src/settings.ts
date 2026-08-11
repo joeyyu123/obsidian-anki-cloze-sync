@@ -75,8 +75,18 @@ export class AnkiSyncSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
+      .setName("選擇題筆記類型")
+      .setDesc("用於 QS/QM 卡片；單選與多選共用此類型，既有類型必須有 Question、Options、Explanation、Mode 與 Back Extra 欄位。")
+      .addText((text) =>
+        text.setValue(this.plugin.settings.choiceModelName).onChange(async (value) => {
+          this.plugin.settings.choiceModelName = value.trim() || "Obsidian Choice";
+          await this.plugin.saveSettings();
+        })
+      );
+
+    new Setting(containerEl)
       .setName("自動同步")
-      .setDesc("Markdown 檔案儲存後，自動同步其中的填空、問答與影像遮擋卡。")
+      .setDesc("Markdown 檔案儲存後，自動同步其中的填空、問答、選擇題與影像遮擋卡。")
       .addToggle((toggle) =>
         toggle.setValue(this.plugin.settings.autoSync).onChange(async (value) => {
           this.plugin.settings.autoSync = value;

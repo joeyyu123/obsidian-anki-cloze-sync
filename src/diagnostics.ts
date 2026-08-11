@@ -1,6 +1,10 @@
 import {
+  CHOICE_OPTION_PATTERN,
+  CHOICE_QUESTION_PATTERN,
   IMAGE_OCCLUSION_MASK_PATTERN,
   IMAGE_OCCLUSION_PATTERN,
+  SYNC_ID_PATTERN,
+  parseChoiceCards,
   parseImageOcclusionCards,
   parseFlashcards,
   scanSyncIdMarkers
@@ -56,6 +60,45 @@ export function diagnoseMarkdown(markdown: string): SyncDiagnostic[] {
           severity: "warning",
           line: index + 1,
           message: "問題缺少相符且非空白的答案，這一題不會同步。"
+        });
+      }
+    }
+    const choiceQuestion = line.match(CHOICE_QUESTION_PATTERN);
+    if (choiceQuestion) {
+      const cardStartsHere = parseChoiceCards(lines.slice(index).join("\n"))[0]?.startLine === 0;
+      if (!cardStartsHere) {
+        const optionMatches: RegExpMatchArray[] = [];
+        for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+          const candidate = lines[cursor] ?? "";
+          if (
+            candidate.trim() === "" ||
+            /^\s*(?:#{1,6}\s+|(?:---+|___+|\*\*\*+)\s*$)/.test(candidate) ||
+            CHOICE_QUESTION_PATTERN.test(candidate) ||
+            /^\s*Q(?:C)?\s*[:：]/i.test(candidate) ||
+            IMAGE_OCCLUSION_PATTERN.test(candidate) ||
+            /^\s*E\s*[:：]/i.test(candidate) ||
+            SYNC_ID_PATTERN.test(candidate)
+          ) {
+            break;
+          }
+          const option = candidate.match(CHOICE_OPTION_PATTERN);
+          if (option) optionMatches.push(option);
+        }
+        const correctCount = optionMatches.filter(
+          (option) => (option[1] ?? "").toLowerCase() === "x"
+        ).length;
+        const mode = choiceQuestion[1]?.toUpperCase();
+        const detail = optionMatches.length < 2
+          ? "至少需要兩個非空白選項"
+          : mode === "S" && correctCount !== 1
+            ? "單選題必須剛好標記一個 [x]"
+            : mode === "M" && correctCount < 1
+              ? "多選題至少需要標記一個 [x]"
+              : "題目文字不可空白";
+        diagnostics.push({
+          severity: "warning",
+          line: index + 1,
+          message: `選擇題格式無效：${detail}，這一題不會同步。`
         });
       }
     }
