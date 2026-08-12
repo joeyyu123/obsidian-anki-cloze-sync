@@ -107,13 +107,13 @@ push(value: T): void {
 
 ### 單選題與多選題
 
-單選題使用 `QS`（Question Single）。正確選項用 `[x]` 標記，而且必須剛好一個：
+單選題使用 `QS`（Question Single）。正確選項用 `[-]` 標記，而且必須剛好一個；這可避免 Obsidian 將正解視為已完成待辦並加上刪除線：
 
 ```markdown
 QS: HTTP 的預設連接埠是？
 - [ ] 21
 - [ ] 22
-- [x] 80
+- [-] 80
 - [ ] 443
 E: HTTP 預設使用 80；HTTPS 才是 443。
 ```
@@ -122,14 +122,14 @@ E: HTTP 預設使用 80；HTTPS 才是 443。
 
 ```markdown
 QM：下列哪些是 JavaScript 的 primitive？
-- [x] string
-- [x] bigint
+- [-] string
+- [-] bigint
 - [ ] Array
-- [x] undefined
+- [-] undefined
 E：Array 屬於 object。
 ```
 
-`QS/QM/E` 支援半形或全形冒號，`E`（Explanation）詳解可以省略。每題至少要有兩個非空白選項；格式不完整、`QS` 沒有剛好一個答案，或 `QM` 沒有任何答案時，預覽診斷會指出問題且不會同步該題。
+`QS/QM/E` 支援半形或全形冒號，`E`（Explanation）詳解可以省略。使用 `[ ]` 表示錯誤選項、`[-]` 表示正確選項；`[x]` 不會被辨識為選擇題選項。每題至少要有兩個非空白選項；格式不完整、`QS` 沒有剛好一個答案，或 `QM` 沒有任何答案時，預覽診斷會指出問題且不會同步該題。
 
 Anki 正面會依題型呈現單選或多選操作，並暫存這一次的選擇。點擊 Anki 的「顯示答案」後，背面以綠色標示答對、紅色標示選錯、橘色虛線標示漏選，再顯示選填的詳解。作答內容只用於當次正反面核對，不會寫回 Markdown；最終仍由使用者按 Anki 的 Again、Hard、Good 或 Easy 評分。
 
@@ -277,7 +277,7 @@ AC: 將元素加入尾端後執行 bubble up。
 
 QS: HTTP 的預設連接埠是？
 - [ ] 21
-- [x] 80
+- [-] 80
 E: HTTPS 預設使用 443。
 <!-- anki-sync-id: b5385732-b80a-45aa-9295-cfd8b827f4ad -->
 

@@ -17,7 +17,7 @@ const ANSWER_PATTERN = /^\s*A\s*[:：]\s*(.*)$/i;
 const CODE_QUESTION_PATTERN = /^\s*QC\s*[:：]\s*(.*)$/i;
 const CODE_ANSWER_PATTERN = /^\s*AC\s*[:：]\s*(.*)$/i;
 export const CHOICE_QUESTION_PATTERN = /^\s*Q([SM])\s*[:：]\s*(.*)$/i;
-export const CHOICE_OPTION_PATTERN = /^\s*-\s+\[([ xX])\]\s+(.+?)\s*$/;
+export const CHOICE_OPTION_PATTERN = /^\s*-\s+\[([ xX-])\]\s+(.+?)\s*$/;
 export const CHOICE_EXPLANATION_PATTERN = /^\s*E\s*[:：]\s*(.*)$/i;
 export const IMAGE_OCCLUSION_PATTERN = /^\s*IO\s*[:：]\s*(.*)$/i;
 export const IMAGE_OCCLUSION_MASK_PATTERN =
@@ -355,12 +355,16 @@ export function parseChoiceCards(markdown: string): ParsedChoiceCard[] {
     }
 
     const options: ParsedChoiceCard["options"] = [];
+    let hasUnsupportedCompletedMarker = false;
     let endLine = startLine;
     while (cursor < lines.length) {
       const optionMatch = (lines[cursor] ?? "").match(CHOICE_OPTION_PATTERN);
       if (!optionMatch) break;
+      if ((optionMatch[1] ?? "").toLowerCase() === "x") {
+        hasUnsupportedCompletedMarker = true;
+      }
       options.push({
-        correct: (optionMatch[1] ?? "").toLowerCase() === "x",
+        correct: optionMatch[1] === "-",
         markdown: optionMatch[2]?.trim() ?? ""
       });
       endLine = cursor;
@@ -410,7 +414,12 @@ export function parseChoiceCards(markdown: string): ParsedChoiceCard[] {
     const questionMarkdown = questionLines.join("\n").trim();
     const correctCount = options.filter((option) => option.correct).length;
     const hasValidAnswer = mode === "single" ? correctCount === 1 : correctCount >= 1;
-    if (questionMarkdown && options.length >= 2 && hasValidAnswer) {
+    if (
+      questionMarkdown &&
+      options.length >= 2 &&
+      hasValidAnswer &&
+      !hasUnsupportedCompletedMarker
+    ) {
       cards.push({
         kind: "choice",
         mode,

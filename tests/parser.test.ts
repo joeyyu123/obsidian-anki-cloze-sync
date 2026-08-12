@@ -152,7 +152,7 @@ test("parses QS as a single-choice card with an optional explanation", () => {
     "QS: HTTP 的預設連接埠是？",
     "- [ ] 21",
     "- [ ] 22",
-    "- [x] **80**",
+    "- [-] **80**",
     "- [ ] 443",
     "E: HTTPS 才預設使用 443。",
     "<!-- anki-sync-id: http-port -->"
@@ -175,10 +175,10 @@ test("parses QS as a single-choice card with an optional explanation", () => {
 test("parses QM with multiple correct answers and full-width punctuation", () => {
   const cards = parseChoiceCards([
     "QM：下列哪些是 JavaScript primitive？",
-    "- [X] string",
-    "- [x] bigint",
+    "- [-] string",
+    "- [-] bigint",
     "- [ ] Array",
-    "- [x] undefined"
+    "- [-] undefined"
   ].join("\n"));
 
   assert.equal(cards.length, 1);
@@ -187,20 +187,28 @@ test("parses QM with multiple correct answers and full-width punctuation", () =>
 });
 
 test("rejects choice cards with invalid answer counts", () => {
-  assert.deepEqual(parseChoiceCards("QS: Pick one\n- [x] A\n- [x] B"), []);
+  assert.deepEqual(parseChoiceCards("QS: Pick one\n- [-] A\n- [-] B"), []);
   assert.deepEqual(parseChoiceCards("QM: Pick many\n- [ ] A\n- [ ] B"), []);
-  assert.deepEqual(parseChoiceCards("QS: Too few\n- [x] A"), []);
+  assert.deepEqual(parseChoiceCards("QS: Too few\n- [-] A"), []);
+});
+
+test("rejects completed task markers so Obsidian does not strike through answers", () => {
+  const source = "QS: Pick one\n- [ ] A\n- [x] B";
+  assert.deepEqual(parseChoiceCards(source), []);
+  assert.ok(diagnoseMarkdown(source).some((item) =>
+    item.message.includes("[-]") && item.message.includes("[x]")
+  ));
 });
 
 test("keeps a preceding Q/A answer separate from an adjacent choice card", () => {
-  const source = "Q: One?\nA: First\nQS: Two?\n- [ ] A\n- [x] B";
+  const source = "Q: One?\nA: First\nQS: Two?\n- [ ] A\n- [-] B";
   const cards = parseFlashcards(source);
   assert.deepEqual(cards.map((card) => card.kind), ["plain", "choice"]);
   assert.equal(cards[0]?.kind === "plain" ? cards[0].answerMarkdown : null, "First");
 });
 
 test("adds a stable id to a choice card and does not duplicate it", () => {
-  const source = "QS: Pick one\n- [ ] A\n- [x] B";
+  const source = "QS: Pick one\n- [ ] A\n- [-] B";
   const first = addMissingSyncIds(source, () => "choice-stable");
   const second = addMissingSyncIds(first.markdown, () => "unexpected");
 
@@ -418,8 +426,8 @@ test("diagnoses malformed image occlusion blocks", () => {
 test("diagnoses invalid single- and multiple-choice answers", () => {
   const diagnostics = diagnoseMarkdown([
     "QS: Invalid single",
-    "- [x] A",
-    "- [x] B",
+    "- [-] A",
+    "- [-] B",
     "",
     "QM: Invalid multiple",
     "- [ ] A",

@@ -85,15 +85,20 @@ export function diagnoseMarkdown(markdown: string): SyncDiagnostic[] {
           if (option) optionMatches.push(option);
         }
         const correctCount = optionMatches.filter(
-          (option) => (option[1] ?? "").toLowerCase() === "x"
+          (option) => option[1] === "-"
         ).length;
+        const hasCompletedMarker = optionMatches.some(
+          (option) => (option[1] ?? "").toLowerCase() === "x"
+        );
         const mode = choiceQuestion[1]?.toUpperCase();
-        const detail = optionMatches.length < 2
+        const detail = hasCompletedMarker
+          ? "請以 [-] 標記正確答案；[x] 會被 Obsidian 視為已完成待辦"
+          : optionMatches.length < 2
           ? "至少需要兩個非空白選項"
           : mode === "S" && correctCount !== 1
-            ? "單選題必須剛好標記一個 [x]"
+            ? "單選題必須剛好標記一個 [-]"
             : mode === "M" && correctCount < 1
-              ? "多選題至少需要標記一個 [x]"
+              ? "多選題至少需要標記一個 [-]"
               : "題目文字不可空白";
         diagnostics.push({
           severity: "warning",
