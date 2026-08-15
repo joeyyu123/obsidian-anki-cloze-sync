@@ -265,10 +265,25 @@ export function parseBasicCards(markdown: string): ParsedBasicCard[] {
         cursor += 1;
         continue;
       }
+      if (!inAnswerFence && candidate.trim() === "") {
+        let nextContentLine = cursor + 1;
+        while (
+          nextContentLine < lines.length &&
+          (lines[nextContentLine] ?? "").trim() === ""
+        ) {
+          nextContentLine += 1;
+        }
+        // Preserve the existing blank-line boundary before a standalone cloze card.
+        const nextStartsClozeCard =
+          parseClozeCards(lines.slice(nextContentLine).join("\n"))[0]?.startLine === 0;
+        if (nextStartsClozeCard) break;
+        answerLines.push(candidate);
+        cursor += 1;
+        continue;
+      }
       if (
         !inAnswerFence &&
-        (candidate.trim() === "" ||
-          HEADING_OR_RULE_PATTERN.test(candidate) ||
+        (HEADING_OR_RULE_PATTERN.test(candidate) ||
           isQuestionBoundary(candidate))
       ) {
         break;

@@ -124,6 +124,66 @@ test("parses adjacent Q/A pairs without requiring blank lines", () => {
   assert.equal(cards[1]?.answerMarkdown, "Second");
 });
 
+test("keeps blank lines and restarted lists inside Q/A answers", () => {
+  const answers = [
+    "First paragraph.\n\nSecond paragraph.",
+    "First paragraph.\n\n\nSecond paragraph.",
+    "1. first\n2. second\n\n1. another first\n2. another second"
+  ];
+
+  for (const answer of answers) {
+    const cards = parseBasicCards(`Q: Why?\nA:\n${answer}`);
+    assert.equal(cards.length, 1);
+    assert.equal(cards[0]?.answerMarkdown, answer);
+  }
+});
+
+test("keeps existing sync ids across one or more blank lines", () => {
+  for (const gap of ["\n\n", "\n\n\n"]) {
+    const source = `Q: question\nA: answer${gap}<!-- anki-sync-id: stable-id -->`;
+    const cards = parseBasicCards(source);
+    const result = addMissingSyncIds(source, () => "unexpected");
+
+    assert.equal(cards[0]?.id, "stable-id");
+    assert.equal(result.added, 0);
+    assert.equal(result.markdown, source);
+  }
+});
+
+test("adds one id after a complete multiline Q/A answer and is idempotent", () => {
+  const source = [
+    "Q: List both groups.",
+    "A:",
+    "1. first",
+    "2. second",
+    "",
+    "1. another first",
+    "2. another second"
+  ].join("\n");
+  const first = addMissingSyncIds(source, () => "stable-id");
+  const second = addMissingSyncIds(first.markdown, () => "unexpected");
+
+  assert.equal(first.added, 1);
+  assert.equal(first.markdown, `${source}\n<!-- anki-sync-id: stable-id -->`);
+  assert.equal(parseBasicCards(first.markdown)[0]?.id, "stable-id");
+  assert.equal(second.added, 0);
+  assert.equal(second.markdown, first.markdown);
+});
+
+test("keeps question markers, headings and rules as Q/A answer boundaries", () => {
+  const source = "Q: question 1\nA: answer 1\n\nQ: question 2\nA: answer 2";
+  const cards = parseBasicCards(source);
+
+  assert.equal(cards.length, 2);
+  assert.deepEqual(cards.map((card) => card.answerMarkdown), ["answer 1", "answer 2"]);
+  for (const boundary of ["## Notes", "---"]) {
+    const boundaryCards = parseBasicCards(
+      `Q: question\nA: answer\n\n${boundary}\nordinary prose`
+    );
+    assert.equal(boundaryCards[0]?.answerMarkdown, "answer");
+  }
+});
+
 test("supports a fenced code block as the reference answer", () => {
   const source = [
     "QC: Implement a stack push method.",
