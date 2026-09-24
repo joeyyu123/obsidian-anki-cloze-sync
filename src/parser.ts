@@ -192,9 +192,11 @@ export function parseClozeCards(markdown: string): ParsedClozeCard[] {
       if (idMatch) {
         id = idMatch[1] ?? null;
         idLine = index;
-      } else {
-        contentLines.push(current);
+        index += 1;
+        break;
       }
+
+      contentLines.push(current);
       index += 1;
     }
 
