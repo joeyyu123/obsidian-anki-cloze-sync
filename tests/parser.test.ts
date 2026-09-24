@@ -86,6 +86,21 @@ test("does not create another id after the first sync", () => {
   assert.equal(second.markdown, first.markdown);
 });
 
+
+test("stops a cloze card at its sync id", () => {
+  const source = [
+    "Question {{c1::answer}}",
+    "<!-- anki-sync-id: cloze-id -->",
+    "ordinary prose"
+  ].join("\n");
+
+  const cards = parseClozeCards(source);
+
+  assert.equal(cards.length, 1);
+  assert.equal(cards[0]?.id, "cloze-id");
+  assert.equal(cards[0]?.markdown, "Question {{c1::answer}}");
+});
+
 test("does not parse removed numbered Q1/A1 cards", () => {
   const source = [
     "Q1: 1+1 = ?",
