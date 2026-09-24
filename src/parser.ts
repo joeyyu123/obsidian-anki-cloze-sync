@@ -31,6 +31,42 @@ const isQuestionBoundary = (line: string): boolean =>
   IMAGE_OCCLUSION_PATTERN.test(line) ||
   REMOVED_NUMBERED_QUESTION_PATTERN.test(line);
 
+const startsStandaloneClozeParagraph = (
+  lines: string[],
+  startLine: number
+): boolean => {
+  if (startLine >= lines.length) return false;
+
+  const firstLine = lines[startLine] ?? "";
+  if (
+    SYNC_ID_PATTERN.test(firstLine) ||
+    HEADING_OR_RULE_PATTERN.test(firstLine) ||
+    FENCE_PATTERN.test(firstLine) ||
+    isQuestionBoundary(firstLine)
+  ) {
+    return false;
+  }
+
+  const paragraphLines: string[] = [];
+  let cursor = startLine;
+  while (cursor < lines.length) {
+    const line = lines[cursor] ?? "";
+    if (
+      line.trim() === "" ||
+      HEADING_OR_RULE_PATTERN.test(line) ||
+      FENCE_PATTERN.test(line) ||
+      isQuestionBoundary(line) ||
+      SYNC_ID_PATTERN.test(line)
+    ) {
+      break;
+    }
+    paragraphLines.push(line);
+    cursor += 1;
+  }
+
+  return CLOZE_PATTERN.test(paragraphLines.join("\n"));
+};
+
 export interface SyncIdMarker {
   id: string;
   line: number;
@@ -131,6 +167,12 @@ export function parseClozeCards(markdown: string): ParsedClozeCard[] {
     }
 
     if (inFence || line.trim() === "" || HEADING_OR_RULE_PATTERN.test(line)) {
+      index += 1;
+      continue;
+    }
+
+    // A sync id belongs to the card immediately before it, never to content after it.
+    if (SYNC_ID_PATTERN.test(line)) {
       index += 1;
       continue;
     }
@@ -265,10 +307,25 @@ export function parseBasicCards(markdown: string): ParsedBasicCard[] {
         cursor += 1;
         continue;
       }
+      if (!inAnswerFence && candidate.trim() === "") {
+        const blankStart = cursor;
+        while (
+          cursor < lines.length &&
+          (lines[cursor] ?? "").trim() === ""
+        ) {
+          cursor += 1;
+        }
+
+        // Blank lines may be part of a multiline answer. Only stop when the
+        // next paragraph is an independent Cloze card.
+        if (startsStandaloneClozeParagraph(lines, cursor)) break;
+
+        answerLines.push(...lines.slice(blankStart, cursor));
+        continue;
+      }
       if (
         !inAnswerFence &&
-        (candidate.trim() === "" ||
-          HEADING_OR_RULE_PATTERN.test(candidate) ||
+        (HEADING_OR_RULE_PATTERN.test(candidate) ||
           isQuestionBoundary(candidate))
       ) {
         break;
