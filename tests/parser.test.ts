@@ -86,6 +86,21 @@ test("does not create another id after the first sync", () => {
   assert.equal(second.markdown, first.markdown);
 });
 
+
+test("stops a cloze card at its sync id", () => {
+  const source = [
+    "Question {{c1::answer}}",
+    "<!-- anki-sync-id: cloze-id -->",
+    "ordinary prose"
+  ].join("\n");
+
+  const cards = parseClozeCards(source);
+
+  assert.equal(cards.length, 1);
+  assert.equal(cards[0]?.id, "cloze-id");
+  assert.equal(cards[0]?.markdown, "Question {{c1::answer}}");
+});
+
 test("does not parse removed numbered Q1/A1 cards", () => {
   const source = [
     "Q1: 1+1 = ?",
@@ -122,6 +137,117 @@ test("parses adjacent Q/A pairs without requiring blank lines", () => {
   const cards = parseBasicCards(source);
   assert.equal(cards.length, 2);
   assert.equal(cards[1]?.answerMarkdown, "Second");
+});
+
+
+test("keeps blank lines and restarted lists inside Q/A answers", () => {
+  const answers = [
+    "First paragraph.\n\nSecond paragraph.",
+    "First paragraph.\n\n\nSecond paragraph.",
+    "1. first\n2. second\n\n1. another first\n2. another second"
+  ];
+
+  for (const answer of answers) {
+    const cards = parseBasicCards(`Q: Why?\nA:\n${answer}`);
+    assert.equal(cards.length, 1);
+    assert.equal(cards[0]?.answerMarkdown, answer);
+  }
+});
+
+test("keeps an existing Q/A sync id across blank lines", () => {
+  for (const gap of ["\n\n", "\n\n\n"]) {
+    const source = `Q: question\nA: answer${gap}<!-- anki-sync-id: stable-id -->`;
+    const cards = parseBasicCards(source);
+    const result = addMissingSyncIds(source, () => "unexpected");
+
+    assert.equal(cards[0]?.id, "stable-id");
+    assert.equal(result.added, 0);
+    assert.equal(result.markdown, source);
+  }
+});
+
+test("keeps a following standalone cloze separate from a Q/A answer", () => {
+  const source = [
+    "Q: question",
+    "A: answer",
+    "",
+    "This is {{c1::cloze}}"
+  ].join("\n");
+
+  const cards = parseFlashcards(source);
+
+  assert.deepEqual(cards.map((card) => card.kind), ["plain", "cloze"]);
+  assert.equal(cards[0]?.kind === "plain" ? cards[0].answerMarkdown : null, "answer");
+});
+
+test("does not reuse a Q/A sync id for a following cloze card", () => {
+  const source = [
+    "Q: question",
+    "A: answer",
+    "",
+    "<!-- anki-sync-id: qa-id -->",
+    "This is {{c1::cloze}}"
+  ].join("\n");
+
+  const cards = parseFlashcards(source);
+
+  assert.equal(cards.length, 2);
+  assert.equal(cards[0]?.kind, "plain");
+  assert.equal(cards[0]?.id, "qa-id");
+  assert.equal(cards[1]?.kind, "cloze");
+  assert.equal(cards[1]?.id, null);
+});
+
+test("adds a separate id to cloze after a Q/A stable id", () => {
+  const source = [
+    "Q: question",
+    "A: answer",
+    "",
+    "<!-- anki-sync-id: qa-id -->",
+    "This is {{c1::cloze}}"
+  ].join("\n");
+
+  const result = addMissingSyncIds(source, () => "cloze-id");
+  const cards = parseFlashcards(result.markdown);
+
+  assert.equal(result.added, 1);
+  assert.equal(cards[0]?.id, "qa-id");
+  assert.equal(cards[1]?.id, "cloze-id");
+});
+
+test("adds one id after a complete multiline Q/A answer and is idempotent", () => {
+  const source = [
+    "Q: List both groups.",
+    "A:",
+    "1. first",
+    "2. second",
+    "",
+    "1. another first",
+    "2. another second"
+  ].join("\n");
+  const first = addMissingSyncIds(source, () => "stable-id");
+  const second = addMissingSyncIds(first.markdown, () => "unexpected");
+
+  assert.equal(first.added, 1);
+  assert.equal(first.markdown, `${source}\n<!-- anki-sync-id: stable-id -->`);
+  assert.equal(parseBasicCards(first.markdown)[0]?.id, "stable-id");
+  assert.equal(second.added, 0);
+  assert.equal(second.markdown, first.markdown);
+});
+
+test("keeps question markers, headings and rules as Q/A answer boundaries", () => {
+  const source = "Q: question 1\nA: answer 1\n\nQ: question 2\nA: answer 2";
+  const cards = parseBasicCards(source);
+
+  assert.equal(cards.length, 2);
+  assert.deepEqual(cards.map((card) => card.answerMarkdown), ["answer 1", "answer 2"]);
+
+  for (const boundary of ["## Notes", "---"]) {
+    const boundaryCards = parseBasicCards(
+      `Q: question\nA: answer\n\n${boundary}\nordinary prose`
+    );
+    assert.equal(boundaryCards[0]?.answerMarkdown, "answer");
+  }
 });
 
 test("supports a fenced code block as the reference answer", () => {
